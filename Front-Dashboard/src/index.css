@@ -1,0 +1,161 @@
+:root {
+  --bg-main: #F4F6F8;
+  --bg-card: #FFFFFF;
+  --text-main: #333333;
+  --text-muted: #888888;
+  --text-heavy: #1B4F72;
+  --border: #EEEEEE;
+  --shadow: 0 4px 20px rgba(0,0,0,0.05);
+  --header-bg: #FFFFFF;
+  --header-text: #333333;
+  --filter-bg: #F4F6F8;
+  --filter-active: #1B4F72;
+  
+  --color-green: #27AE60;
+  --color-green-bg: #D5F5E3;
+  --color-red: #E74C3C;
+  --color-red-bg: #FADBD8;
+  --color-yellow: #F1C40F;
+  --color-yellow-bg: #FEF9E7;
+  
+  --chart-grid: #EEEEEE;
+  --chart-text: #888888;
+}
+
+[data-theme='dark'] {
+  --bg-main: #13151A;
+  --bg-card: #1F2128;
+  --text-main: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --text-heavy: #FFFFFF;
+  --border: #2D303E;
+  --shadow: 0 8px 30px rgba(0,0,0,0.4);
+  --header-bg: #1A1C23;
+  --header-text: #FFFFFF;
+  --filter-bg: #2D303E;
+  --filter-active: #4F46E5;
+  
+  --color-green: #10B981;
+  --color-green-bg: rgba(16, 185, 129, 0.15);
+  --color-red: #EF4444;
+  --color-red-bg: rgba(239, 68, 68, 0.15);
+  --color-yellow: #F59E0B;
+  --color-yellow-bg: rgba(245, 158, 11, 0.15);
+
+  --chart-grid: #2D303E;
+  --chart-text: #6B7280;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+  background-color: var(--bg-main); 
+  color: var(--text-main); 
+  transition: background-color 0.3s, color 0.3s;
+  overflow-x: hidden;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+
+.btn-filter {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--filter-bg);
+  color: var(--text-muted);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+}
+
+.btn-filter:hover {
+  background: var(--border);
+  color: var(--text-main);
+}
+
+.btn-filter.active {
+  background: var(--filter-active);
+  color: #FFF;
+}
+
+.filter-group-header {
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--header-text);
+  transition: background 0.15s;
+}
+
+.filter-group-header:hover {
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.filter-group-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.6;
+  letter-spacing: 1px;
+}
+
+.filter-group-arrow {
+  font-size: 10px;
+  opacity: 0.5;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--filter-active);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Sidebar dark overrides — keeps filter buttons styled for dark bg */
+.sidebar-dark {
+  --filter-bg: rgba(255,255,255,0.08);
+  --filter-active: #2f6fd4;
+  --text-muted: #8899aa;
+  --text-main: #ccd6e0;
+  --header-text: #ccd6e0;
+  --border: #2d3d52;
+}
+
+.sidebar-dark .filter-group-header { color: #ccd6e0; }
+.sidebar-dark .btn-filter:hover { background: rgba(255,255,255,0.12); color: #ccd6e0; }
