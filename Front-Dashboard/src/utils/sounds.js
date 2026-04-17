@@ -26,6 +26,32 @@ export function playNuevoLead() {
   } catch (e) { console.warn('Audio no disponible:', e); }
 }
 
+// Sonido de venta efectiva (fanfarria festiva)
+export function playVentaEfectiva() {
+  try {
+    const c = getCtx();
+    // Melodía ascendente: Do - Mi - Sol - Do alta
+    const notas = [
+      { freq: 523, delay: 0,    dur: 0.15 },
+      { freq: 659, delay: 0.16, dur: 0.15 },
+      { freq: 784, delay: 0.32, dur: 0.15 },
+      { freq: 1047, delay: 0.48, dur: 0.35 },
+    ];
+    notas.forEach(({ freq, delay, dur }) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, c.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + dur);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(c.currentTime + delay);
+      osc.stop(c.currentTime + delay + dur);
+    });
+  } catch (e) { console.warn('Audio no disponible:', e); }
+}
+
 // Sonido de alerta SLA (tono urgente, más grave)
 export function playAlertaSLA() {
   try {

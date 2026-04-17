@@ -25,7 +25,7 @@ async function verificarInactividad() {
       WHERE l.estado = 'cotizado'
         AND l.alerta_inactividad_enviada = false
         AND l.ts_primera_respuesta IS NOT NULL
-        AND business_minutes(l.ts_primera_respuesta, NOW()) >= 960
+        AND business_minutes(l.ts_primera_respuesta, NOW()::timestamp) >= 960
     `);
         //960 = 2 días × 8 horas × 60 min
 

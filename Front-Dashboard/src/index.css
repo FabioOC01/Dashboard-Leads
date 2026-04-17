@@ -1,6 +1,6 @@
 :root {
   --bg-main: #F4F6F8;
-  --bg-card: #FFFFFF;
+  --bg-card: #f4f6f8;
   --text-main: #333333;
   --text-muted: #888888;
   --text-heavy: #1B4F72;
@@ -24,7 +24,7 @@
 
 [data-theme='dark'] {
   --bg-main: #13151A;
-  --bg-card: #1F2128;
+  --bg-card: #13151a;
   --text-main: #F3F4F6;
   --text-muted: #9CA3AF;
   --text-heavy: #FFFFFF;
@@ -159,3 +159,23 @@ body {
 
 .sidebar-dark .filter-group-header { color: #ccd6e0; }
 .sidebar-dark .btn-filter:hover { background: rgba(255,255,255,0.12); color: #ccd6e0; }
+
+@keyframes shimmer-bar {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 0px transparent; opacity: 1; }
+  50%       { text-shadow: 0 0 24px rgba(46, 204, 113, 0.7); opacity: 0.85; }
+}
+
+@keyframes scanner {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}

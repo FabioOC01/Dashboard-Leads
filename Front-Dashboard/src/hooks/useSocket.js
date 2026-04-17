@@ -13,6 +13,7 @@ export function useSocket() {
     socket.on('connect_error',         ()     => setConectado(false));
     socket.on('lead:nuevo',            (data) => setUltimoEvento({ tipo: 'nuevo', data }));
     socket.on('lead:actualizado',      (data) => setUltimoEvento({ tipo: 'actualizado', data }));
+    socket.on('lead:venta_efectiva',   (data) => setUltimoEvento({ tipo: 'venta_efectiva', data }));
     socket.on('lead:cerrado',          (data) => setUltimoEvento({ tipo: 'cerrado', data }));
     socket.on('lead:alerta_inactividad',(data) => setUltimoEvento({ tipo: 'alerta', data }));
 

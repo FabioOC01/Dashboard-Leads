@@ -27,6 +27,19 @@ export default function GraficoTiempo({ leads, filtroFecha }) {
   }
 
   return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    {/* Scanner overlay */}
+    <div style={{
+      position: 'absolute', inset: 0, overflow: 'hidden',
+      pointerEvents: 'none', zIndex: 1, borderRadius: 8,
+    }}>
+      <div style={{
+        position: 'absolute', top: 0, bottom: 0,
+        width: '20%',
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)',
+        animation: 'scanner 4s linear infinite',
+      }} />
+    </div>
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
         <defs>
@@ -42,8 +55,10 @@ export default function GraficoTiempo({ leads, filtroFecha }) {
           contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
           labelStyle={{ fontWeight: 600, color: '#333', marginBottom: 4 }}
         />
-        <Area type="monotone" dataKey="leads" name="Leads Nuevos" stroke="#2E86C1" strokeWidth={3} fillOpacity={1} fill="url(#colorLeads)" />
+        <Area type="monotone" dataKey="leads" name="Leads Nuevos" stroke="#2E86C1" strokeWidth={3} fillOpacity={1} fill="url(#colorLeads)"
+          isAnimationActive={true} animationBegin={0} animationDuration={1000} animationEasing="ease-out" />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }

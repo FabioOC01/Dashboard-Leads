@@ -18,7 +18,7 @@ export default function TarjetaMetrica({
         flex: 1,
         minWidth: 140,
         borderTop: `4px solid ${accentColor}`,
-        background: '#f4f6f8',
+        background: 'var(--bg-card)',
         display: 'flex',
         flexDirection: 'column',
       }}
