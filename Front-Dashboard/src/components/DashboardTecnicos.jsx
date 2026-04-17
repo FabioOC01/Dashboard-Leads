@@ -1,35 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+function isHorarioHabil() {
+  const t = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const day = t.getDay();
+  const min = t.getHours() * 60 + t.getMinutes();
+  if (day === 0) return false;
+  if (day === 6) return min >= 9 * 60 + 30 && min < 14 * 60;
+  return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
+}
 
 export default function DashboardTecnicos({ leads, fetchedAt }) {
   const [tick, setTick] = useState(0);
+  const [animado, setAnimado] = useState(false);
   useEffect(() => {
     const t = setInterval(() => setTick(k => k + 1), 1000);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setAnimado(true), 50);
+    return () => clearTimeout(t);
+  }, []);
 
-  const elapsed = (Date.now() - (fetchedAt || Date.now())) / 60000;
+  const elapsed = isHorarioHabil() ? (Date.now() - (fetchedAt || Date.now())) / 60000 : 0;
 
   const sellers = {};
   leads.forEach(l => {
     const v = l.vendedor_nombre || (l.vendedor_id ? `Vendedor ${l.vendedor_id}` : 'Sin Asignar');
     if (!sellers[v]) sellers[v] = { aTiempo: 0, atrasados: 0, cotizados: 0, total: 0 };
 
-    const leadElapsed = l._socketAt != null
-      ? (Date.now() - l._socketAt) / 60000
-      : elapsed;
-
-    let wTime = 0;
-    if (l.min_primera_respuesta != null) {
-      wTime = l.min_primera_respuesta;
+    let wTime;
+    if (l.ts_primera_respuesta) {
+      wTime = parseFloat(l.min_primera_respuesta) || 0;
+    } else if (l._socketAt != null) {
+      wTime = isHorarioHabil() ? (Date.now() - l._socketAt) / 60000 : parseFloat(l.min_esperando_respuesta) || 0;
     } else if (l.min_esperando_respuesta != null) {
-      wTime = l.min_esperando_respuesta + leadElapsed;
-    } else if (l.ts_primera_respuesta) {
-      const tsResp = new Date(String(l.ts_primera_respuesta).replace(' ', 'T'));
-      const tsRef  = new Date(String(l.ts_efectivo || l.ts_lead_creado).replace(' ', 'T'));
-      wTime = (tsResp - tsRef) / 60000;
+      wTime = parseFloat(l.min_esperando_respuesta) + elapsed;
     } else {
-      const ref = new Date(String(l.ts_efectivo || l.ts_lead_creado).replace(' ', 'T'));
-      wTime = isNaN(ref.getTime()) ? 0 : (Date.now() - ref.getTime()) / 60000;
+      wTime = 0;
     }
 
     if (wTime > 15) sellers[v].atrasados++;
@@ -39,8 +46,15 @@ export default function DashboardTecnicos({ leads, fetchedAt }) {
     sellers[v].total++;
   });
 
+  const VENDOR_PHOTOS = {
+    'erimay':    'https://comutelperu.com/correo-cm/Fotos/ERIMAY.png',
+    'estefany':  'https://comutelperu.com/correo-cm/Fotos/ESTEFANY.png',
+    'sthefania': 'https://comutelperu.com/correo-cm/Fotos/STHEFANIA.png',
+    'christian': 'https://comutelperu.com/correo-cm/Fotos/CHRISTIAN-PERFIL.jpg.jpeg',
+  };
+
   const sorted = Object.entries(sellers)
-    .map(([nombre, s]) => ({ nombre, ...s, pct: s.total > 0 ? Math.round((s.aTiempo / s.total) * 100) : 0 }))
+    .map(([nombre, s], i) => ({ nombre, ...s, pct: s.total > 0 ? Math.round((s.aTiempo / s.total) * 100) : 0, idx: i }))
     .sort((a, b) => b.pct - a.pct);
 
   if (sorted.length === 0) {
@@ -49,9 +63,10 @@ export default function DashboardTecnicos({ leads, fetchedAt }) {
 
   return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-    {sorted.map(s => {
-      const barColor = s.pct >= 80 ? '#27AE60' : s.pct >= 50 ? '#D97706' : '#E74C3C';
+    {sorted.map((s, i) => {
+      const barColor = s.pct >= 70 ? '#27AE60' : s.pct >= 50 ? '#D97706' : '#E74C3C';
       const initials = s.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const photo = VENDOR_PHOTOS[s.nombre.split(' ')[0].toLowerCase()] || null;
 
       return (
         <div
@@ -82,9 +97,14 @@ export default function DashboardTecnicos({ leads, fetchedAt }) {
               fontWeight: 800,
               color: barColor,
               flexShrink: 0,
+              overflow: 'hidden',
+              animation: `pulse-glow ${2 + i * 0.3}s ease-in-out infinite`,
+              animationDelay: `${i * 0.4}s`,
             }}
           >
-            {initials}
+            {photo
+              ? <img src={photo} alt={s.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : initials}
           </div>
 
           {/* Nombre + barra */}
@@ -111,17 +131,25 @@ export default function DashboardTecnicos({ leads, fetchedAt }) {
                 borderRadius: 4,
                 background: 'var(--border)',
                 overflow: 'hidden',
+                position: 'relative',
               }}
             >
               <div
                 style={{
                   height: '100%',
                   borderRadius: 4,
-                  width: `${s.pct}%`,
+                  width: animado ? `${s.pct}%` : '0%',
                   background: barColor,
-                  transition: 'width 0.5s ease',
+                  transition: `width 0.7s cubic-bezier(0.25, 1, 0.5, 1) ${i * 100}ms`,
                 }}
               />
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.5) 50%, transparent 80%)',
+                backgroundSize: '200% 100%',
+                animation: `shimmer-bar ${2 + i * 0.35}s linear infinite`,
+                animationDelay: `${i * 0.6}s`,
+              }} />
             </div>
           </div>
 

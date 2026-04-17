@@ -9,13 +9,20 @@ export default function Semaforo({ minutos, meta, tipo }) {
   const getTexto = () => {
     const minVal = parseFloat(minutos);
     if (isNaN(minVal)) return '—';
-    
+
     let totalSeconds = Math.floor(minVal * 60);
     if (totalSeconds <= 0) return '0s';
 
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
+
+    // Ocultar segundos una vez superada la meta
+    const superado = meta != null && minVal >= meta;
+    if (superado) {
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
 
     if (h > 0) return s > 0 ? `${h}h ${m}m ${s}s` : `${h}h ${m}m`;
     if (m > 0) return `${m}m ${s}s`;
