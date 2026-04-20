@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /tmp/design)",
+      "Read(//tmp/**)",
+      "Bash(cp \"/c/Users/FabioPC/.claude/projects/c--Users-FabioPC-Documents-Retail-CM/dad22145-1f1d-424b-a1a5-0f8711d47367/tool-results/webfetch-1776695723588-fik53c.bin\" design.tar.gz)",
+      "Bash(tar -xzf design.tar.gz)",
+      "Read(//c/tmp/design/vantio-leads/**)"
+    ]
+  }
+}

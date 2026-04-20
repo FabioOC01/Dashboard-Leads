@@ -3,14 +3,31 @@ import { updateEstadoLead, updateTiemposLead, deleteLead, updateVendedorLead, up
 import { useState, useEffect, useRef } from 'react';
 
 const ESTADOS = {
-  nuevo:              { label: 'Nuevo',          bg: '#D6EAF8', color: '#1B4F72' },
-  en_atencion:        { label: 'En atención',    bg: '#FEF3C7', color: '#D97706' },
-  cotizado:           { label: 'Cotizado',       bg: '#FDEBD0', color: '#E67E22' },
-  derivado:           { label: 'Derivado',       bg: '#D1ECF1', color: '#0C7A8B' },
-  cotizado_tecnico:   { label: 'Cot. Técnico',   bg: '#E0F2FE', color: '#0369A1' },
-  venta_efectiva:     { label: 'Venta efectiva', bg: '#D5F5E3', color: '#27AE60' },
-  negociacion_futuro: { label: 'Neg. a futuro',  bg: '#EAD7F7', color: '#8E44AD' },
-  no_efectiva:        { label: 'No efectiva',    bg: '#FADBD8', color: '#E74C3C' },
+  nuevo:              { label: 'Nuevo',          color: '#38bdf8' },
+  en_atencion:        { label: 'En atención',    color: '#a78bfa' },
+  cotizado:           { label: 'Cotizado',       color: '#f59e0b' },
+  derivado:           { label: 'Derivado',       color: '#06b6d4' },
+  cotizado_tecnico:   { label: 'Cot. Técnico',   color: '#14b8a6' },
+  venta_efectiva:     { label: 'Venta efectiva', color: '#10b981' },
+  negociacion_futuro: { label: 'Neg. a futuro',  color: '#fb923c' },
+  no_efectiva:        { label: 'No efectiva',    color: '#f43f5e' },
+};
+
+const inputStyle = {
+  fontSize: 11, padding: '4px 8px', borderRadius: 6,
+  border: '1px solid var(--border-mid)', background: 'var(--surface-2)',
+  color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none',
+};
+
+const btnOk = {
+  flex: 1, fontSize: 11, padding: '3px 0', borderRadius: 6,
+  border: 'none', background: 'var(--accent)', color: '#fff',
+  cursor: 'pointer', fontWeight: 700,
+};
+const btnCancel = {
+  flex: 1, fontSize: 11, padding: '3px 0', borderRadius: 6,
+  border: 'none', background: 'var(--danger)', color: '#fff',
+  cursor: 'pointer', fontWeight: 700,
 };
 
 function VendedorSelect({ lead, vendedores }) {
@@ -23,12 +40,7 @@ function VendedorSelect({ lead, vendedores }) {
     <select
       value={lead.vendedor_id ?? ''}
       onChange={handleCambio}
-      style={{
-        marginTop: 4, fontSize: 11, padding: '2px 6px',
-        borderRadius: 6, border: '1px solid var(--border)',
-        background: 'var(--bg-main)', color: 'var(--text-main)',
-        cursor: 'pointer', width: '100%',
-      }}
+      style={{ ...inputStyle, marginTop: 4, width: '100%', cursor: 'pointer' }}
     >
       <option value="">Sin asignar</option>
       {vendedores.map(v => (
@@ -57,12 +69,7 @@ function TecnicoSelect({ lead, tecnicos, isAdmin }) {
     <select
       value={lead.tecnico_id ?? ''}
       onChange={handleCambio}
-      style={{
-        marginTop: 4, fontSize: 11, padding: '2px 6px',
-        borderRadius: 6, border: '1px solid var(--border)',
-        background: 'var(--bg-main)', color: 'var(--text-main)',
-        cursor: 'pointer', width: '100%',
-      }}
+      style={{ ...inputStyle, marginTop: 4, width: '100%', cursor: 'pointer' }}
     >
       <option value="">Sin asignar</option>
       {tecnicos.map(t => (
@@ -72,8 +79,28 @@ function TecnicoSelect({ lead, tecnicos, isAdmin }) {
   );
 }
 
+function StatePill({ estado }) {
+  const cfg = ESTADOS[estado] || { label: estado, color: '#6b7280' };
+  return (
+    <span className="state-pill" style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '3px 9px', borderRadius: 6,
+      background: cfg.color + '1f',
+      border: `1px solid ${cfg.color}55`,
+      color: cfg.color, fontSize: 11, fontWeight: 700,
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: cfg.color, boxShadow: `0 0 4px ${cfg.color}`,
+      }} />
+      {cfg.label}
+    </span>
+  );
+}
+
 function BadgeSelect({ lead, isAdmin, onActualizar }) {
-  const cfg = ESTADOS[lead.estado] || { label: lead.estado, bg: '#eee', color: '#333' };
+  const cfg = ESTADOS[lead.estado] || { label: lead.estado, color: '#6b7280' };
 
   const handleCambio = (e) => {
     const nuevoEstado = e.target.value;
@@ -82,37 +109,29 @@ function BadgeSelect({ lead, isAdmin, onActualizar }) {
       .catch(err => console.error("Error al actualizar", err));
   };
 
-  if (!isAdmin) {
-    return (
-      <div style={{
-        background: cfg.bg, color: cfg.color, padding: '4px 8px',
-        borderRadius: 20, fontSize: 12, fontWeight: 600,
-        display: 'inline-block', textAlign: 'center',
-      }}>
-        {cfg.label}
-      </div>
-    );
-  }
+  if (!isAdmin) return <StatePill estado={lead.estado} />;
 
   return (
     <select
       value={lead.estado}
       onChange={handleCambio}
       style={{
-        background: cfg.bg, color: cfg.color, padding: '4px 8px',
-        borderRadius: 20, fontSize: 12, fontWeight: 600,
-        border: 'none', outline: 'none', cursor: 'pointer', appearance: 'none',
-        textAlign: 'center'
+        background: cfg.color + '1f', color: cfg.color,
+        padding: '3px 9px', borderRadius: 6,
+        border: `1px solid ${cfg.color}55`,
+        outline: 'none', cursor: 'pointer', appearance: 'none',
+        fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
       }}
     >
       {Object.entries(ESTADOS).map(([val, config]) => (
-        <option key={val} value={val} style={{ background: 'white', color: 'black' }}>{config.label}</option>
+        <option key={val} value={val} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+          {config.label}
+        </option>
       ))}
     </select>
   );
 }
 
-// Convierte timestamp a valor para input datetime-local (Lima)
 function tsToInput(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -120,7 +139,6 @@ function tsToInput(ts) {
   return lima.toISOString().slice(0, 16);
 }
 
-// Convierte valor del input datetime-local a ISO string Lima (-05:00)
 function inputToISO(val) {
   if (!val) return null;
   return val + ':00-05:00';
@@ -151,11 +169,9 @@ function CeldaTiempo({ lead, campo, label, onGuardado, isAdmin }) {
     }
   };
 
-  const cancelar = () => setEditando(false);
-
   if (!isAdmin) {
     return (
-      <div style={{ color: lead[campo] ? 'var(--text-main)' : '#bbb' }}>
+      <div style={{ color: lead[campo] ? 'var(--text-main)' : 'var(--text-dim)' }}>
         {lead[campo] ? formatFecha(lead[campo]) : '—'}
       </div>
     );
@@ -164,51 +180,27 @@ function CeldaTiempo({ lead, campo, label, onGuardado, isAdmin }) {
   if (editando) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 170 }}>
-        <div style={{ fontSize: 10, color: '#888', marginBottom: 1 }}>{label}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 1 }}>{label}</div>
         <input
           ref={inputRef}
           type="datetime-local"
           value={valor}
           onChange={e => setValor(e.target.value)}
-          style={{
-            fontSize: 11, padding: '3px 6px', borderRadius: 6,
-            border: '1px solid var(--border)', background: 'var(--bg-main)',
-            color: 'var(--text-main)',
-          }}
+          style={inputStyle}
         />
         <div style={{ display: 'flex', gap: 4 }}>
-          <button
-            onClick={guardar}
-            disabled={guardando}
-            style={{
-              flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6,
-              border: 'none', background: '#27AE60', color: 'white', cursor: 'pointer',
-            }}
-          >
-            {guardando ? '...' : '✓'}
-          </button>
-          <button
-            onClick={cancelar}
-            style={{
-              flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6,
-              border: 'none', background: '#E74C3C', color: 'white', cursor: 'pointer',
-            }}
-          >
-            ✕
-          </button>
+          <button onClick={guardar} disabled={guardando} style={btnOk}>{guardando ? '...' : '✓'}</button>
+          <button onClick={() => setEditando(false)} style={btnCancel}>✕</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      onClick={abrir}
-      title={`Editar ${label}`}
-      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-    >
-      <span>{lead[campo] ? formatFecha(lead[campo]) : <span style={{ color: '#bbb' }}>—</span>}</span>
-      <span style={{ fontSize: 10, color: '#bbb', opacity: 0.6 }}>✎</span>
+    <div onClick={abrir} title={`Editar ${label}`}
+      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span>{lead[campo] ? formatFecha(lead[campo]) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</span>
+      <span style={{ fontSize: 10, color: 'var(--text-dim)', opacity: 0.6 }}>✎</span>
     </div>
   );
 }
@@ -244,8 +236,8 @@ function CeldaInfo({ lead, onGuardado, isAdmin }) {
   if (!isAdmin) {
     return (
       <>
-        <div style={{ fontWeight: 500, color: 'var(--text-main)' }}>{lead.tipo || 'General'}</div>
-        <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>{lead.campana || 'S/C'}</div>
+        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{lead.tipo || 'General'}</div>
+        <div style={{ color: 'var(--text-muted)', marginTop: 2, fontSize: 11 }}>{lead.campana || 'S/C'}</div>
       </>
     );
   }
@@ -253,37 +245,15 @@ function CeldaInfo({ lead, onGuardado, isAdmin }) {
   if (editando) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 150 }}>
-        <input
-          ref={refTipo}
-          type="text"
-          placeholder="Tipo"
-          value={tipo}
-          onChange={e => setTipo(e.target.value)}
-          style={{
-            fontSize: 11, padding: '3px 6px', borderRadius: 6,
-            border: '1px solid var(--border)', background: 'var(--bg-main)',
-            color: 'var(--text-main)',
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Campaña"
-          value={campana}
+        <input ref={refTipo} type="text" placeholder="Tipo" value={tipo}
+          onChange={e => setTipo(e.target.value)} style={inputStyle} />
+        <input type="text" placeholder="Campaña" value={campana}
           onChange={e => setCampana(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') guardar(); if (e.key === 'Escape') setEditando(false); }}
-          style={{
-            fontSize: 11, padding: '3px 6px', borderRadius: 6,
-            border: '1px solid var(--border)', background: 'var(--bg-main)',
-            color: 'var(--text-main)',
-          }}
-        />
+          style={inputStyle} />
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={guardar} disabled={guardando} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#27AE60', color: 'white', cursor: 'pointer' }}>
-            {guardando ? '...' : '✓'}
-          </button>
-          <button onClick={() => setEditando(false)} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#E74C3C', color: 'white', cursor: 'pointer' }}>
-            ✕
-          </button>
+          <button onClick={guardar} disabled={guardando} style={btnOk}>{guardando ? '...' : '✓'}</button>
+          <button onClick={() => setEditando(false)} style={btnCancel}>✕</button>
         </div>
       </div>
     );
@@ -292,10 +262,10 @@ function CeldaInfo({ lead, onGuardado, isAdmin }) {
   return (
     <div onClick={abrir} title="Editar tipo / campaña" style={{ cursor: 'pointer' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{lead.tipo || 'General'}</span>
-        <span style={{ fontSize: 10, color: '#bbb', opacity: 0.6 }}>✎</span>
+        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{lead.tipo || 'General'}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-dim)', opacity: 0.6 }}>✎</span>
       </div>
-      <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>{lead.campana || 'S/C'}</div>
+      <div style={{ color: 'var(--text-muted)', marginTop: 2, fontSize: 11 }}>{lead.campana || 'S/C'}</div>
     </div>
   );
 }
@@ -327,41 +297,29 @@ function CeldaCanal({ lead, onGuardado, isAdmin }) {
   };
 
   if (!isAdmin) {
-    return <span>{lead.canal || '—'}</span>;
+    return <span style={{ color: 'var(--text-muted)' }}>{lead.canal || '—'}</span>;
   }
 
   if (editando) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 }}>
-        <input
-          ref={refInput}
-          type="text"
-          placeholder="Canal"
-          value={canal}
+        <input ref={refInput} type="text" placeholder="Canal" value={canal}
           onChange={e => setCanal(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') guardar(); if (e.key === 'Escape') setEditando(false); }}
-          style={{
-            fontSize: 11, padding: '3px 6px', borderRadius: 6,
-            border: '1px solid var(--border)', background: 'var(--bg-main)',
-            color: 'var(--text-main)',
-          }}
-        />
+          style={inputStyle} />
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={guardar} disabled={guardando} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#27AE60', color: 'white', cursor: 'pointer' }}>
-            {guardando ? '...' : '✓'}
-          </button>
-          <button onClick={() => setEditando(false)} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#E74C3C', color: 'white', cursor: 'pointer' }}>
-            ✕
-          </button>
+          <button onClick={guardar} disabled={guardando} style={btnOk}>{guardando ? '...' : '✓'}</button>
+          <button onClick={() => setEditando(false)} style={btnCancel}>✕</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div onClick={abrir} title="Editar canal" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div onClick={abrir} title="Editar canal"
+      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }}>
       <span>{lead.canal || '—'}</span>
-      <span style={{ fontSize: 10, color: '#bbb', opacity: 0.6 }}>✎</span>
+      <span style={{ fontSize: 10, color: 'var(--text-dim)', opacity: 0.6 }}>✎</span>
     </div>
   );
 }
@@ -402,26 +360,13 @@ function CeldaObservaciones({ lead, onGuardado, isAdmin }) {
   if (editando) {
     return (
       <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <textarea
-          ref={refInput}
-          rows={2}
-          placeholder="Observación..."
-          value={obs}
+        <textarea ref={refInput} rows={2} placeholder="Observación..." value={obs}
           onChange={e => setObs(e.target.value)}
           onKeyDown={e => { if (e.key === 'Escape') setEditando(false); }}
-          style={{
-            fontSize: 11, padding: '4px 6px', borderRadius: 6, width: '100%',
-            border: '1px solid var(--border)', background: 'var(--bg-main)',
-            color: 'var(--text-main)', resize: 'vertical', minHeight: 48,
-          }}
-        />
+          style={{ ...inputStyle, width: '100%', resize: 'vertical', minHeight: 48 }} />
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={guardar} disabled={guardando} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#27AE60', color: 'white', cursor: 'pointer' }}>
-            {guardando ? '...' : '✓'}
-          </button>
-          <button onClick={() => setEditando(false)} style={{ flex: 1, fontSize: 11, padding: '2px 0', borderRadius: 6, border: 'none', background: '#E74C3C', color: 'white', cursor: 'pointer' }}>
-            ✕
-          </button>
+          <button onClick={guardar} disabled={guardando} style={btnOk}>{guardando ? '...' : '✓'}</button>
+          <button onClick={() => setEditando(false)} style={btnCancel}>✕</button>
         </div>
       </div>
     );
@@ -432,17 +377,18 @@ function CeldaObservaciones({ lead, onGuardado, isAdmin }) {
       onClick={isAdmin ? abrir : undefined}
       title={isAdmin ? 'Editar observación' : undefined}
       style={{
-        marginTop: 6, padding: '4px 6px', borderRadius: 6,
-        background: '#FEF9C3', borderLeft: '3px solid #F59E0B',
-        fontSize: 11, color: '#92400E', lineHeight: 1.4,
+        marginTop: 6, padding: '5px 8px', borderRadius: 6,
+        background: 'var(--color-yellow-bg)',
+        borderLeft: '2px solid var(--warning)',
+        fontSize: 11, color: 'var(--warning)', lineHeight: 1.4,
         cursor: isAdmin ? 'pointer' : 'default',
         display: 'flex', alignItems: 'flex-start', gap: 4,
       }}
     >
       <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {lead.observaciones || <span style={{ color: '#bbb', fontStyle: 'italic' }}>Sin observación</span>}
+        {lead.observaciones || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Sin observación</span>}
       </span>
-      {isAdmin && <span style={{ fontSize: 10, color: '#bbb', opacity: 0.6, flexShrink: 0 }}>✎</span>}
+      {isAdmin && <span style={{ fontSize: 10, color: 'var(--text-dim)', opacity: 0.6, flexShrink: 0 }}>✎</span>}
     </div>
   );
 }
@@ -456,10 +402,9 @@ function formatFecha(ts) {
   });
 }
 
-// Devuelve true si ahora mismo estamos en horario hábil (hora Peru)
 function isHorarioHabil() {
   const peruTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
-  const day = peruTime.getDay(); // 0=Dom, 6=Sáb
+  const day = peruTime.getDay();
   const t = peruTime.getHours() * 60 + peruTime.getMinutes();
   if (day === 0) return false;
   if (day === 6) return t >= 9 * 60 + 30 && t < 14 * 60;
@@ -485,7 +430,6 @@ const ESTADOS_CERRADOS = ['venta_efectiva', 'no_efectiva', 'negociacion_futuro']
 
 function getMinutosCotizacion(lead, fetchedAt) {
   if (lead.min_cotizacion != null && parseFloat(lead.min_cotizacion) > 0) return parseFloat(lead.min_cotizacion);
-  // Lead cerrado sin cotización enviada: mostrar tiempo final fijo
   if (ESTADOS_CERRADOS.includes(lead.estado)) {
     return lead.min_cotizacion_final != null ? parseFloat(lead.min_cotizacion_final) : null;
   }
@@ -500,15 +444,12 @@ function getMinutosCotizacion(lead, fetchedAt) {
 }
 
 function getMinutosSoporte(lead, fetchedAt) {
-  // Lead cerrado tras soporte: mostrar tiempo total
   if (['venta_efectiva', 'no_efectiva', 'negociacion_futuro'].includes(lead.estado)) {
     return lead.min_soporte_final != null ? parseFloat(lead.min_soporte_final) : null;
   }
-  // Técnico ya mandó cotización: mostrar tiempo derivado→cotizacion_tecnico
   if (lead.estado === 'cotizado_tecnico') {
     return lead.min_soporte_cotizacion != null ? parseFloat(lead.min_soporte_cotizacion) : null;
   }
-  // Lead en espera de soporte activo
   if (lead.estado !== 'derivado') return null;
   if (lead._derivadoAt != null) {
     return isHorarioHabil() ? (Date.now() - lead._derivadoAt) / 60000 : parseFloat(lead.min_esperando_soporte) || 0;
@@ -520,6 +461,21 @@ function getMinutosSoporte(lead, fetchedAt) {
   return null;
 }
 
+const thStyle = {
+  padding: '10px 14px', textAlign: 'left',
+  fontWeight: 700, fontSize: 9, letterSpacing: 0.7,
+  textTransform: 'uppercase', color: 'var(--text-dim)',
+  borderBottom: '1px solid var(--border)',
+  background: 'var(--bg-card)',
+};
+
+const tdStyle = {
+  padding: '12px 14px', fontSize: 12,
+  color: 'var(--text-main)',
+  borderBottom: '1px solid var(--border)',
+  verticalAlign: 'top',
+};
+
 export default function TablaLeads({ leads, fetchedAt = Date.now(), tecnicos = [], vendedores = [], onActualizar, onEliminar, isAdmin = false }) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -527,123 +483,102 @@ export default function TablaLeads({ leads, fetchedAt = Date.now(), tecnicos = [
     return () => clearInterval(t);
   }, []);
 
+  const headers = ['Cliente', 'Tipo · Campaña', 'Vendedor', 'Canal', 'Requerimiento', 'Estado',
+    'Respuesta', 'Cotización', 'Soporte',
+    ...(isAdmin ? ['Creado', 'Efectivo', '1ra Resp.', 'Cotiz.', 'Deriv.', ''] : [])];
+
   return (
-    <div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
-          <tr style={{ background: 'var(--header-bg)', color: 'var(--header-text)' }}>
-            {['Cliente', 'Tipo · Campaña', 'Vendedor', 'Canal', 'Requerimiento', 'Estado',
-              'Respuesta', 'Cotización', 'Soporte',
-              ...(isAdmin ? ['Creado', 'Efectivo', '1ra Resp.', 'Cotiz.', 'Deriv.', ''] : [])].map(h => (
-                <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500 }}>
-                  {h}
-                </th>
-              ))}
+          <tr>
+            {headers.map(h => <th key={h} style={thStyle}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {leads.length === 0 && (
             <tr>
-              <td colSpan={10} style={{ padding: 24, textAlign: 'center', color: '#888' }}>
+              <td colSpan={headers.length} style={{ padding: 32, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
                 No hay leads
               </td>
             </tr>
           )}
-          {leads.map((lead, i) => (
-            <tr key={lead.id} style={{
-              background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-main)',
-              borderBottom: '1px solid var(--border)'
-            }}>
-              <td style={{ padding: '10px 14px' }}>
-                <div style={{ fontWeight: 600 }}>{lead.nombre}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>{lead.celular}</div>
+          {leads.map((lead) => (
+            <tr key={lead.id} className="lead-row">
+              <td style={tdStyle}>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{lead.nombre}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{lead.celular}</div>
               </td>
-              <td style={{ padding: '10px 14px', fontSize: 13 }}>
+              <td style={tdStyle}>
                 <CeldaInfo lead={lead} onGuardado={onActualizar} isAdmin={isAdmin} />
               </td>
-              <td style={{ padding: '10px 14px' }}>
-                <div>{lead.vendedor_nombre || '—'}</div>
-                {isAdmin && (
-                  <VendedorSelect lead={lead} vendedores={vendedores} />
-                )}
+              <td style={tdStyle}>
+                <div style={{ color: 'var(--text-main)' }}>{lead.vendedor_nombre || <span style={{ color: 'var(--text-dim)' }}>—</span>}</div>
+                {isAdmin && <VendedorSelect lead={lead} vendedores={vendedores} />}
                 {(lead.estado === 'derivado' || lead.estado === 'cotizado_tecnico' || (lead.tecnico_id && lead.ts_derivado)) && (
                   <TecnicoSelect lead={lead} tecnicos={tecnicos} isAdmin={isAdmin} />
                 )}
               </td>
-              <td style={{ padding: '10px 14px' }}>
+              <td style={tdStyle}>
                 <CeldaCanal lead={lead} onGuardado={onActualizar} isAdmin={isAdmin} />
               </td>
-              <td style={{ padding: '10px 14px', maxWidth: 220 }}>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {lead.requerimiento || '—'}
+              <td style={{ ...tdStyle, maxWidth: 220 }}>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>
+                  {lead.requerimiento || <span style={{ color: 'var(--text-dim)' }}>—</span>}
                 </div>
                 <CeldaObservaciones lead={lead} onGuardado={onActualizar} isAdmin={isAdmin} />
               </td>
-              <td style={{ padding: '10px 14px' }}>
+              <td style={tdStyle}>
                 <BadgeSelect lead={lead} isAdmin={isAdmin} onActualizar={onActualizar} />
               </td>
-              <td style={{ padding: '10px 14px' }}>
-                <Semaforo
-                  minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)}
-                  meta={15}
-                  tipo="1ra resp."
-                />
+              <td style={tdStyle}>
+                <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} tipo="1ra resp." />
               </td>
-              <td style={{ padding: '10px 14px' }}>
-                <Semaforo
-                  minutos={getMinutosCotizacion(lead, fetchedAt)}
-                  meta={240}
-                  tipo="Cotización"
-                />
+              <td style={tdStyle}>
+                <Semaforo minutos={getMinutosCotizacion(lead, fetchedAt)} meta={240} tipo="Cotización" />
               </td>
-              <td style={{ padding: '10px 14px' }}>
-                <Semaforo
-                  minutos={getMinutosSoporte(lead, fetchedAt)}
-                  meta={240}
-                  tipo="Soporte"
-                />
+              <td style={tdStyle}>
+                <Semaforo minutos={getMinutosSoporte(lead, fetchedAt)} meta={240} tipo="Soporte" />
               </td>
               {isAdmin && (
                 <>
-                  <td style={{ padding: '10px 14px', fontSize: 12, color: '#888' }}>
+                  <td style={{ ...tdStyle, fontSize: 11, color: 'var(--text-muted)' }}>
                     {formatFecha(lead.ts_lead_creado)}
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                  <td style={{ ...tdStyle, fontSize: 11 }}>
                     <CeldaTiempo lead={lead} campo="ts_efectivo" label="Efectivo" onGuardado={onActualizar} isAdmin={isAdmin} />
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                  <td style={{ ...tdStyle, fontSize: 11 }}>
                     <CeldaTiempo lead={lead} campo="ts_primera_respuesta" label="1ra Respuesta" onGuardado={onActualizar} isAdmin={isAdmin} />
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                  <td style={{ ...tdStyle, fontSize: 11 }}>
                     <CeldaTiempo lead={lead} campo="ts_cotizacion_enviada" label="Cotización" onGuardado={onActualizar} isAdmin={isAdmin} />
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                  <td style={{ ...tdStyle, fontSize: 11 }}>
                     <CeldaTiempo lead={lead} campo="ts_derivado" label="Derivado" onGuardado={onActualizar} isAdmin={isAdmin} />
                   </td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar el lead de ${lead.nombre}? Esta acción no se puede deshacer.`)) {
+                          deleteLead(lead.id)
+                            .then(() => onEliminar?.(lead.id))
+                            .catch(err => console.error('Error al eliminar', err));
+                        }
+                      }}
+                      title="Eliminar lead"
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 14, color: 'var(--text-dim)', padding: 4,
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
+                    >
+                      🗑
+                    </button>
+                  </td>
                 </>
-              )}
-              {isAdmin && (
-                <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`¿Eliminar el lead de ${lead.nombre}? Esta acción no se puede deshacer.`)) {
-                        deleteLead(lead.id)
-                          .then(() => onEliminar?.(lead.id))
-                          .catch(err => console.error('Error al eliminar', err));
-                      }
-                    }}
-                    title="Eliminar lead"
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 16, opacity: 0.5, padding: 4,
-                      transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={e => e.currentTarget.style.opacity = 0.5}
-                  >
-                    🗑️
-                  </button>
-                </td>
               )}
             </tr>
           ))}

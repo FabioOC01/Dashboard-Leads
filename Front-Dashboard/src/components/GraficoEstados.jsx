@@ -1,26 +1,34 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useState, useEffect } from 'react';
 
 const ESTADO_COLORS = {
-  nuevo:              '#1B4F72',
-  en_atencion:        '#D97706',
-  cotizado:           '#3fb3e9',
-  cotizado_tecnico:   '#0369A1',
-  venta_efectiva:     '#038539',
-  negociacion_futuro: '#8E44AD',
-  no_efectiva:        '#E74C3C',
+  nuevo: '#38bdf8',
+  en_atencion: '#a78bfa',
+  cotizado: '#f59e0b',
+  derivado: '#06b6d4',
+  cotizado_tecnico: '#14b8a6',
+  venta_efectiva: '#10b981',
+  negociacion_futuro: '#fb923c',
+  no_efectiva: '#f43f5e',
 };
 
 const ESTADO_LABELS = {
-  nuevo:            'Nuevo',
-  en_atencion:      'En atención',
-  cotizado:         'Cotizado',
+  nuevo: 'Nuevo',
+  en_atencion: 'En Atención',
+  cotizado: 'Cotizado',
+  derivado: 'Derivado',
   cotizado_tecnico: 'Cot. Técnico',
-  venta_efectiva:   'Venta efectiva',
-  negociacion_futuro: 'Neg. a futuro',
-  no_efectiva:      'No efectiva',
+  venta_efectiva: 'Venta Efectiva',
+  negociacion_futuro: 'Neg. Futuro',
+  no_efectiva: 'No Efectiva',
 };
 
 export default function GraficoEstados({ leads }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
   const counts = {};
   leads.forEach(l => {
     const e = l.estado || 'nuevo';
@@ -29,64 +37,69 @@ export default function GraficoEstados({ leads }) {
 
   const data = Object.entries(counts)
     .map(([key, value]) => ({
+      key,
       name: ESTADO_LABELS[key] || key,
       value,
-      color: ESTADO_COLORS[key] || '#888',
+      color: ESTADO_COLORS[key] || '#6b7280',
     }))
     .sort((a, b) => b.value - a.value);
 
   if (data.length === 0) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 13 }}>No hay datos</div>;
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px 0', color: 'var(--text-dim)', fontSize: 14,
+      }}>
+        No hay datos
+      </div>
+    );
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 8, paddingTop: 20 }}>
-      {/* Pie rotando */}
-      <div style={{ flex: 1, animation: 'spin-slow 20s linear infinite' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius="50%"
-              outerRadius="80%"
-              dataKey="value"
-              stroke="none"
-              paddingAngle={2}
-              isAnimationActive={true}
-              animationBegin={0}
-              animationDuration={900}
-              animationEasing="ease-out"
-            >
-              {data.map((entry, i) => (
-                <Cell key={`cell-${i}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border)',
-                color: 'var(--text-main)',
-                borderRadius: 8,
-                boxShadow: 'var(--shadow)',
-              }}
-              itemStyle={{ color: 'var(--text-main)', fontWeight: 600 }}
-              formatter={(value, name) => [value, name]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+  const max = data[0].value;
+  const total = data.reduce((s, d) => s + d.value, 0);
 
-      {/* Leyenda estática (no rota) */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', justifyContent: 'center' }}>
-        {data.map(entry => (
-          <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
-            {entry.name}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '5px 0px 1px' }}>
+      {data.map((d, i) => {
+        const barW = max > 0 ? (d.value / max) * 200 : 0;
+        const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+        return (
+          <div key={d.key} style={{
+            display: 'grid', gridTemplateColumns: '78px 1fr 15px',
+            alignItems: 'center', gap: 8,
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(10px)',
+            transition: `all 0.6s cubic-bezier(.4,0,.2,1) ${i * 60}ms`,
+          }}>
+            <div style={{
+              fontSize: 12, color: 'var(--text-muted)', fontWeight: 500,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{d.name}</div>
+            <div style={{
+              height: 20, background: 'var(--track)',
+              borderRadius: 3, overflow: 'hidden', position: 'relative',
+            }}>
+              <div style={{
+                height: '100%',
+                width: visible ? `${barW}%` : '0%',
+                background: `linear-gradient(90deg, ${d.color}aa 0%, ${d.color} 25%, ${d.color}aa 50%, ${d.color} 75%, ${d.color}aa 100%)`,
+                backgroundSize: '200% 100%',
+                animation: 'waveBg 2.5s linear infinite',
+                borderRadius: 3,
+                boxShadow: `0 0 6px ${d.color}55`,
+                transition: `width 0.6s cubic-bezier(.4,0,.2,1) ${i * 60}ms`,
+              }} />
+            </div>
+            <div style={{
+              fontSize: 10, color: 'var(--text-main)', fontWeight: 800,
+              fontVariantNumeric: 'tabular-nums', textAlign: 'right',
+            }}>
+              {d.value}
+
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

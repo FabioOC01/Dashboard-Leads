@@ -18,21 +18,24 @@ import ModalVendedores from '../components/ModalVendedores';
 const MoonIcon = () => <span style={{ fontSize: 20 }}>☾</span>;
 const SunIcon = () => <span style={{ fontSize: 20 }}>☀</span>;
 
-function FilterGroup({ label, children, defaultOpen = true }) {
+function FilterGroup({ label, children, defaultOpen = true, badge }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ marginBottom: 20 }}>
-      <button className="filter-group-header" onClick={() => setOpen(o => !o)}
-        style={{ marginBottom: open ? 10 : 0 }}>
-        <span className="filter-group-label">{label}</span>
-        <span className="filter-group-arrow"
-          style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
-      </button>
-      {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {children}
+    <div style={{ marginBottom: 14 }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+        padding: '5px 0', marginBottom: open ? 8 : 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#5a7090', textTransform: 'uppercase' }}>{label}</span>
+          {badge && (
+            <span style={{ background: '#2f6fd4', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 10 }}>{badge}</span>
+          )}
         </div>
-      )}
+        <span style={{ color: '#5a7090', fontSize: 10, transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
+      </button>
+      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</div>}
     </div>
   );
 }
@@ -94,10 +97,10 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const cargarDatos = useCallback(async (silent = false) => {
     const now = new Date();
     const desde = {
-      dia:    now.toISOString().split('T')[0],
+      dia: now.toISOString().split('T')[0],
       semana: new Date(now - 7 * 864e5).toISOString().split('T')[0],
-      mes:    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
-      todos:  null,
+      mes: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      todos: null,
     }[filtroFecha] ?? null;
 
     if (!silent) setIsLoading(true);
@@ -110,30 +113,30 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             ? Number(sessionStorage.getItem(`cot_at_${newLead.id}`))
             : (newLead.ts_primera_respuesta && !newLead.ts_cotizacion_enviada && newLead.min_esperando_cotizacion != null
               ? (() => {
-                  const ts = Date.now() - parseFloat(newLead.min_esperando_cotizacion) * 60000;
-                  sessionStorage.setItem(`cot_at_${newLead.id}`, ts);
-                  return ts;
-                })()
+                const ts = Date.now() - parseFloat(newLead.min_esperando_cotizacion) * 60000;
+                sessionStorage.setItem(`cot_at_${newLead.id}`, ts);
+                return ts;
+              })()
               : undefined));
         const respAt = existing?._socketAt
           ?? (sessionStorage.getItem(`resp_at_${newLead.id}`)
             ? Number(sessionStorage.getItem(`resp_at_${newLead.id}`))
             : (!newLead.ts_primera_respuesta && newLead.min_esperando_respuesta != null
               ? (() => {
-                  const ts = Date.now() - newLead.min_esperando_respuesta * 60000;
-                  sessionStorage.setItem(`resp_at_${newLead.id}`, ts);
-                  return ts;
-                })()
+                const ts = Date.now() - newLead.min_esperando_respuesta * 60000;
+                sessionStorage.setItem(`resp_at_${newLead.id}`, ts);
+                return ts;
+              })()
               : undefined));
         const sopAt = existing?._derivadoAt
           ?? (sessionStorage.getItem(`sop_at_${newLead.id}`)
             ? Number(sessionStorage.getItem(`sop_at_${newLead.id}`))
             : (newLead.estado === 'derivado' && newLead.min_esperando_soporte != null
               ? (() => {
-                  const ts = Date.now() - parseFloat(newLead.min_esperando_soporte) * 60000;
-                  sessionStorage.setItem(`sop_at_${newLead.id}`, ts);
-                  return ts;
-                })()
+                const ts = Date.now() - parseFloat(newLead.min_esperando_soporte) * 60000;
+                sessionStorage.setItem(`sop_at_${newLead.id}`, ts);
+                return ts;
+              })()
               : undefined));
         return { ...newLead, _socketAt: respAt, _cotizacionAt: cotAt, _derivadoAt: sopAt };
       }));
@@ -222,8 +225,8 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
     // Confetti + sonido para venta efectiva (todos los clientes)
     if ((tipo === 'actualizado' || tipo === 'venta_efectiva') &&
-        data.estado === 'venta_efectiva' &&
-        !ventaConfettiTriggered.current.has(data.id)) {
+      data.estado === 'venta_efectiva' &&
+      !ventaConfettiTriggered.current.has(data.id)) {
       ventaConfettiTriggered.current.add(data.id);
       playVentaEfectiva();
       addToast(`🎉 ¡Venta efectiva! ${data.nombre || 'Lead'} — ${data.vendedor_nombre || 'Sin asesor'}`, 'success');
@@ -303,6 +306,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     derivado: 'Derivado', cotizado_tecnico: 'Cot. Técnico',
     venta_efectiva: 'Venta efectiva', negociacion_futuro: 'Neg. a futuro', no_efectiva: 'No efectiva'
   };
+  const ESTADO_COLORS = {
+    nuevo: '#3B82F6', en_atencion: '#F59E0B', cotizado: '#8B5CF6',
+    derivado: '#06B6D4', cotizado_tecnico: '#0D9488',
+    venta_efectiva: '#22C55E', negociacion_futuro: '#F97316', no_efectiva: '#EF4444',
+  };
 
   // Cálculos y Filtros Principales
   const now = new Date();
@@ -316,7 +324,13 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     if (!l.ts_lead_creado) return true;
     const d = new Date(l.ts_lead_creado);
     if (filtroFecha === 'dia') return d.toDateString() === now.toDateString();
-    if (filtroFecha === 'semana') return (now - d) / (24 * 60 * 60 * 1000) <= 7;
+    if (filtroFecha === 'semana') {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? 6 : day - 1; // 0=Sun
+      const minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
+      minDate.setHours(0, 0, 0, 0);
+      return d >= minDate;
+    }
     if (filtroFecha === 'mes') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     return true;
   });
@@ -355,10 +369,10 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     motivosCount[t] = (motivosCount[t] || 0) + 1;
   });
   const TIPO_ICONS = {
-    'academia':       'https://comutelperu.com/correo-cm/Iconos/academia.png',
-    'requerimiento':  'https://comutelperu.com/correo-cm/Iconos/requerimiento.png',
+    'academia': 'https://comutelperu.com/correo-cm/Iconos/academia.png',
+    'requerimiento': 'https://comutelperu.com/correo-cm/Iconos/requerimiento.png',
     'soporte': 'https://comutelperu.com/correo-cm/Iconos/soporte-tecnico.png',
-    'producto':       'https://comutelperu.com/correo-cm/Iconos/producto.png',
+    'producto': 'https://comutelperu.com/correo-cm/Iconos/producto.png',
   };
   const dataMotivos = Object.entries(motivosCount)
     .map(([name, value]) => ({ name, value, icon: TIPO_ICONS[name.toLowerCase()] || null }))
@@ -366,11 +380,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   // Chart Data: Canales
   const CANAL_ICONS = {
-    store:     'https://comutelperu.com/correo-cm/Iconos/odoo.png',
-    whatsapp:  'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
-    facebook:  'https://comutelperu.com/correo-cm/Iconos/facebook.png',
+    store: 'https://comutelperu.com/correo-cm/Iconos/odoo.png',
+    whatsapp: 'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
+    facebook: 'https://comutelperu.com/correo-cm/Iconos/facebook.png',
     instagram: 'https://comutelperu.com/correo-cm/Iconos/instagram.png',
-    web:       'https://comutelperu.com/correo-cm/Logo/ISO.png',
+    web: 'https://comutelperu.com/correo-cm/Logo/ISO.png',
   };
   const CANAL_COLORS = {
     store: '#7C3AED',
@@ -393,7 +407,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       name: name.charAt(0).toUpperCase() + name.slice(1),
       value,
       color: CANAL_COLORS[name.toLowerCase()] || '#6B7280',
-      icon:  CANAL_ICONS[name.toLowerCase()] || null,
+      icon: CANAL_ICONS[name.toLowerCase()] || null,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -417,17 +431,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
           {collapsed
             ? <img src="https://comutelperu.com/correo-cm/Logo/ISO%20BLANCO.png" alt="Comutel" style={{ width: 36, display: 'block' }} />
             : <div style={{ width: '100%' }}>
-                <img src="https://comutelperu.com/correo-cm/Logo/LOGO-BLANCO.png" alt="Comutel" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
-                <div style={{ color: '#8899aa', fontSize: 11, marginTop: 6 }}>Retail Leads Dashboard</div>
-              </div>
+              <img src="https://comutelperu.com/correo-cm/Logo/LOGO-BLANCO.png" alt="Comutel" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
+              <div style={{ color: '#8899aa', fontSize: 11, marginTop: 6 }}>Vantio Leads</div>
+            </div>
           }
         </div>
 
         {/* Navegación */}
         <nav style={{ padding: collapsed ? '12px 0' : '12px 12px' }}>
           {[
-            { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-            { key: 'detalle',   label: 'Detalle Operativo', icon: '📋' },
+            { key: 'dashboard', label: 'Dashboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg> },
+            { key: 'detalle', label: 'Detalle Operativo', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> },
           ].map(item => (
             <button key={item.key} onClick={() => { setView(item.key); if (item.key === 'dashboard') cargarDatos(true); }}
               title={collapsed ? item.label : undefined}
@@ -454,42 +468,157 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
         {/* Filtros — solo cuando está expandido */}
         {!collapsed && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-            <FilterGroup label="Tiempo">
-              {FILTROS_FECHA.map(f => (
-                <button key={f.value} className={`btn-filter ${filtroFecha === f.value ? 'active' : ''}`} onClick={() => setFiltroFecha(f.value)}>
-                  {f.label}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 8px' }}>
+
+            {/* Limpiar filtros */}
+            {(filtroEstado || filtroTipo || filtroVendedor || filtroCanal || filtroFecha !== 'mes') && (
+              <button onClick={() => { setFiltroFecha('mes'); setFiltroEstado(''); setFiltroTipo(''); setFiltroVendedor(''); setFiltroCanal(''); }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: '100%', marginBottom: 14,
+                  padding: '6px 10px', borderRadius: 6, border: '1px solid #e74c3c44',
+                  background: '#e74c3c11', color: '#e74c3c', fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                }}>
+                ✕ Limpiar filtros
+              </button>
+            )}
+
+            {/* Período */}
+            <FilterGroup label="Período">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {FILTROS_FECHA.map(f => (
+                  <button key={f.value} onClick={() => setFiltroFecha(f.value)} style={{
+                    padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600, textAlign: 'center', transition: 'all 0.15s',
+                    background: filtroFecha === f.value ? '#2f6fd4' : '#253347',
+                    color: filtroFecha === f.value ? '#fff' : '#6b84a0',
+                  }}>{f.label}</button>
+                ))}
+              </div>
+            </FilterGroup>
+
+            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
+
+            {/* Estado */}
+            <FilterGroup label="Estado" defaultOpen={false} badge={filtroEstado ? 1 : null}>
+              <button onClick={() => setFiltroEstado('')} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: filtroEstado === '' ? '#253347' : 'transparent',
+                color: filtroEstado === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4a5c70', flexShrink: 0 }} />
+                Todos los estados
+              </button>
+              {estadosUnicos.map(e => (
+                <button key={e} onClick={() => setFiltroEstado(e)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                  background: filtroEstado === e ? (ESTADO_COLORS[e] || '#2f6fd4') + '22' : 'transparent',
+                  color: filtroEstado === e ? (ESTADO_COLORS[e] || '#fff') : '#8899aa',
+                  fontSize: 12, fontWeight: filtroEstado === e ? 600 : 400, transition: 'all 0.15s',
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: ESTADO_COLORS[e] || '#6b7280', flexShrink: 0 }} />
+                  {ESTADO_LABELS[e] || e}
                 </button>
               ))}
             </FilterGroup>
 
-            <FilterGroup label="Estado" defaultOpen={false}>
-              <button className={`btn-filter ${filtroEstado === '' ? 'active' : ''}`} onClick={() => setFiltroEstado('')}>Todos</button>
-              {estadosUnicos.map(e => (
-                <button key={e} className={`btn-filter ${filtroEstado === e ? 'active' : ''}`} onClick={() => setFiltroEstado(e)}>{ESTADO_LABELS[e] || e}</button>
-              ))}
-            </FilterGroup>
+            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
 
-            <FilterGroup label="Categoría / Motivo" defaultOpen={false}>
-              <button className={`btn-filter ${filtroTipo === '' ? 'active' : ''}`} onClick={() => setFiltroTipo('')}>Todos</button>
+            {/* Categoría */}
+            <FilterGroup label="Categoría" defaultOpen={false} badge={filtroTipo ? 1 : null}>
+              <button onClick={() => setFiltroTipo('')} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: filtroTipo === '' ? '#253347' : 'transparent',
+                color: filtroTipo === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
+              }}>
+                <span style={{ fontSize: 14 }}>⊞</span> Todas
+              </button>
               {tiposUnicos.map(t => (
-                <button key={t} className={`btn-filter ${filtroTipo === t ? 'active' : ''}`} onClick={() => setFiltroTipo(t)}>{t}</button>
+                <button key={t} onClick={() => setFiltroTipo(t)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                  background: filtroTipo === t ? '#2f6fd422' : 'transparent',
+                  color: filtroTipo === t ? '#60a5fa' : '#8899aa',
+                  fontSize: 12, fontWeight: filtroTipo === t ? 600 : 400, transition: 'all 0.15s',
+                }}>
+                  {TIPO_ICONS[t?.toLowerCase()]
+                    ? <img src={TIPO_ICONS[t.toLowerCase()]} alt={t} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />
+                    : <span style={{ fontSize: 13 }}>●</span>}
+                  <span style={{ textTransform: 'capitalize' }}>{t}</span>
+                </button>
               ))}
             </FilterGroup>
 
-            <FilterGroup label="Vendedor" defaultOpen={false}>
-              <button className={`btn-filter ${filtroVendedor === '' ? 'active' : ''}`} onClick={() => setFiltroVendedor('')}>Todos</button>
-              {vendedoresUnicos.map(v => (
-                <button key={v} className={`btn-filter ${filtroVendedor === v ? 'active' : ''}`} onClick={() => setFiltroVendedor(v)}>{v}</button>
-              ))}
+            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
+
+            {/* Canal */}
+            <FilterGroup label="Canal" defaultOpen={false} badge={filtroCanal ? 1 : null}>
+              <button onClick={() => setFiltroCanal('')} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: filtroCanal === '' ? '#253347' : 'transparent',
+                color: filtroCanal === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
+              }}>
+                <span style={{ fontSize: 14 }}>⊞</span> Todos
+              </button>
+              {canalesUnicos.map(c => {
+                const key = c.toLowerCase();
+                return (
+                  <button key={c} onClick={() => setFiltroCanal(c)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                    padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    background: filtroCanal === c ? (CANAL_COLORS[key] || '#2f6fd4') + '22' : 'transparent',
+                    color: filtroCanal === c ? (CANAL_COLORS[key] || '#60a5fa') : '#8899aa',
+                    fontSize: 12, fontWeight: filtroCanal === c ? 600 : 400, transition: 'all 0.15s',
+                  }}>
+                    {CANAL_ICONS[key]
+                      ? <img src={CANAL_ICONS[key]} alt={c} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />
+                      : <span style={{ width: 8, height: 8, borderRadius: '50%', background: CANAL_COLORS[key] || '#6b7280', flexShrink: 0, display: 'inline-block' }} />}
+                    <span style={{ textTransform: 'capitalize' }}>{c}</span>
+                  </button>
+                );
+              })}
             </FilterGroup>
 
-            <FilterGroup label="Canal" defaultOpen={false}>
-              <button className={`btn-filter ${filtroCanal === '' ? 'active' : ''}`} onClick={() => setFiltroCanal('')}>Todos</button>
-              {canalesUnicos.map(c => (
-                <button key={c} className={`btn-filter ${filtroCanal === c ? 'active' : ''}`} onClick={() => setFiltroCanal(c)}>{c}</button>
-              ))}
+            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
+
+            {/* Vendedor */}
+            <FilterGroup label="Vendedor" defaultOpen={false} badge={filtroVendedor ? 1 : null}>
+              <button onClick={() => setFiltroVendedor('')} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: filtroVendedor === '' ? '#253347' : 'transparent',
+                color: filtroVendedor === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
+              }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#2d3d52', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#8899aa', flexShrink: 0 }}>·</span>
+                Todos
+              </button>
+              {vendedoresUnicos.map(v => {
+                const initials = v.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const hue = v.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+                return (
+                  <button key={v} onClick={() => setFiltroVendedor(v)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                    padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    background: filtroVendedor === v ? '#2f6fd422' : 'transparent',
+                    color: filtroVendedor === v ? '#60a5fa' : '#8899aa',
+                    fontSize: 12, fontWeight: filtroVendedor === v ? 600 : 400, transition: 'all 0.15s',
+                    textAlign: 'left',
+                  }}>
+                    <span style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                      background: `hsl(${hue},45%,35%)`, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 9, fontWeight: 700,
+                      color: `hsl(${hue},60%,85%)`
+                    }}>{initials}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
+                  </button>
+                );
+              })}
             </FilterGroup>
+
           </div>
         )}
 
@@ -499,8 +628,8 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         {/* Links externos */}
         <div style={{ borderTop: '1px solid #2d3d52', padding: collapsed ? '8px 0' : '8px 12px' }}>
           {[
-            { href: `http://${window.location.hostname}:5174`, label: 'CRM Empresas', icon: '💼' },
-            { href: 'http://192.168.1.50', label: 'GLPI', icon: '🛠' },
+            { href: `http://${window.location.hostname}:5174`, label: 'Vantio ', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
+            { href: 'http://192.168.1.50', label: 'GLPI CM', icon: 'https://comutelperu.com/correo-cm/Iconos/10156352.png' },
           ].map(({ href, label, icon }) => (
             <a key={href} href={href} target="_blank" rel="noreferrer"
               title={collapsed ? label : undefined}
@@ -517,7 +646,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
               onMouseLeave={e => e.currentTarget.style.color = '#8899aa'}
             >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+              <img src={icon} alt={label} style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />
               {!collapsed && <span>{label}</span>}
             </a>
           ))}
@@ -548,8 +677,10 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       <div style={{ flex: 1, overflow: view === 'detalle' ? 'hidden' : 'auto', padding: '24px 40px', display: 'flex', flexDirection: 'column', position: 'relative', minHeight: 0 }}>
 
         {isLoading && (
-          <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-main)', opacity: 0.7,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+          <div style={{
+            position: 'absolute', inset: 0, background: 'var(--bg-main)', opacity: 0.7,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20
+          }}>
             <div className="spinner" />
           </div>
         )}
@@ -557,66 +688,155 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         {/* Topbar: título + breadcrumb + controles */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>
-              {view === 'dashboard' ? 'Dashboard' : 'Detalle Operativo'}
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+              Gestión de Leads
             </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, fontWeight: 500, textTransform: 'capitalize' }}>
+              {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} - {currentTime.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+            </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+
+            {/* Search Bar Visual -> Trimestres */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 6, padding: '4px', fontSize: 13,
+            }}>
+              {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => {
+                const isCurrent = (i + 1) === (Math.floor(currentTime.getMonth() / 3) + 1);
+                return (
+                  <button key={q} style={{
+                    background: isCurrent ? 'var(--accent)' : 'transparent',
+                    border: 'none', borderRadius: 4, cursor: 'pointer',
+                    padding: '4px 12px', color: isCurrent ? '#fff' : 'var(--text-main)',
+                    fontWeight: 600, fontSize: 12,
+                    animation: isCurrent ? 'pulse 2s infinite' : 'none',
+                    boxShadow: isCurrent ? '0 2px 8px var(--accent-glow)' : 'none',
+                    transition: 'all 0.3s'
+                  }}>
+                    {q}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Administrar Vendedores y Probar Alertas (Solo Admin) */}
             {isAdmin && (
-              <button
-                onClick={() => setShowVendedores(true)}
-                title="Gestionar vendedores"
-                style={{
-                  padding: '5px 12px', borderRadius: 20, border: 'none',
-                  background: 'var(--bg-card)', color: 'var(--text-muted)',
-                  cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                }}
-              >
-                👥
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    playAlertaSLA();
+                    addToast("⚠️ Probando alerta crítica de SLA", "error");
+                    
+                    setTimeout(() => {
+                      playNuevoLead('Erimay');
+                      addToast("🔊 Probando alerta lead: Erimay", "info");
+                    }, 1500);
+
+                    setTimeout(() => {
+                      playNuevoLead('Sthefania');
+                      addToast("🔊 Probando alerta lead: Sthefania", "info");
+                    }, 3000);
+
+                    setTimeout(() => {
+                      playNuevoLead('Estefany');
+                      addToast("🔊 Probando alerta lead: Estefany", "info");
+                    }, 4500);
+
+                    setTimeout(() => {
+                      playNuevoLead('Otro');
+                      addToast("🔊 Probando alerta lead genérico (beep)", "info");
+                    }, 6000);
+
+                    setTimeout(() => {
+                      playVentaEfectiva();
+                      addToast("🎉 ¡Probando celebración de venta!", "success");
+                      const duration = 2500;
+                      const end = Date.now() + duration;
+                      const colors = ['#27AE60', '#F1C40F', '#E74C3C', '#3498DB', '#9B59B6'];
+                      (function frame() {
+                        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors });
+                        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors });
+                        if (Date.now() < end) requestAnimationFrame(frame);
+                      })();
+                    }, 7500);
+                  }}
+                  title="Probar sonidos y alertas"
+                  style={{
+                    padding: '6px 10px', borderRadius: 6, border: '1px solid var(--accent-border)',
+                    background: 'var(--bg-card)', color: 'var(--accent)',
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    display: 'flex', alignItems: 'center'
+                  }}
+                >
+                  🔊 Test
+                </button>
+                <button
+                  onClick={() => setShowVendedores(true)}
+                  title="Gestionar vendedores"
+                  style={{
+                    padding: '6px 12px', borderRadius: 6, border: '1px solid var(--accent-border)',
+                    background: 'var(--accent-glow)', color: 'var(--accent)',
+                    cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                    display: 'flex', alignItems: 'center'
+                  }}
+                >
+                  👥
+                </button>
+              </div>
             )}
-            {isAdmin ? (
-              <button
-                onClick={onLogout}
-                title="Cerrar sesión de administrador"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 12px', borderRadius: 20, border: 'none',
-                  background: '#D5F5E3', color: '#27AE60',
-                  cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                }}
-              >
-                🔓
-              </button>
-            ) : (
-              <button
-                onClick={onAdminClick}
-                title="Iniciar sesión como administrador"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 12px', borderRadius: 20, border: 'none',
-                  background: 'var(--bg-card)', color: 'var(--text-muted)',
-                  cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                }}
-              >
-                🔒
-              </button>
-            )}
-            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', opacity: 0.7, padding: 4, fontSize: 20, display: 'flex', alignItems: 'center' }}>
+
+            {/* Theme Toggle */}
+            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-dim)',
+              cursor: 'pointer', padding: '6px 10px', borderRadius: 6, fontSize: 16, display: 'flex', alignItems: 'center'
+            }}>
               {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600,
-              color: !conectado ? 'var(--color-red)' : enHorarioHabil ? 'var(--color-green)' : '#92400E',
-              background: !conectado ? 'var(--color-red-bg)' : enHorarioHabil ? 'var(--color-green-bg)' : '#FEF3C7',
-              padding: '5px 10px', borderRadius: 20 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor',
-                display: 'inline-block', animation: conectado && enHorarioHabil ? 'pulse 2s infinite' : 'none' }} />
-              {!conectado ? 'Desconectado' : enHorarioHabil ? 'En vivo' : 'Fuera de horario'}
+
+            {/* Login / Exportar estilo */}
+            <button
+              onClick={isAdmin ? onLogout : onAdminClick}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
+                background: 'var(--bg-card)', color: 'var(--text-dim)',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <span style={{ fontSize: 12 }}>{isAdmin ? '🔓' : '🔒'}</span>
+              {isAdmin ? 'Desconectar' : 'Login Admin'}
+            </button>
+
+            {/* En vivo / Nuevo Lead Verde */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700,
+              color: '#fff',
+              background: !conectado ? 'var(--danger)' : enHorarioHabil ? 'var(--accent)' : '#92400E',
+              padding: '7px 16px', borderRadius: 6, cursor: 'default'
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', background: 'currentColor',
+                display: 'inline-block', animation: conectado && enHorarioHabil ? 'pulse 2s infinite' : 'none'
+              }} />
+              {!conectado ? 'Desconectado' : enHorarioHabil ? 'En Vivo' : 'Fuera de horario'}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              🕒 {currentTime.toLocaleTimeString('es-PE', { timeZone: 'America/Lima' })}
-            </div>
-            <button onClick={toggleFullscreen} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 16, opacity: 0.7 }}>
+
+            {/* Notificaciones */}
+            <button style={{
+              padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
+              background: 'var(--bg-card)', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 15
+            }}>
+              🔔
+            </button>
+
+            {/* Fullscreen con color del Sidebar */}
+            <button onClick={toggleFullscreen} style={{
+              background: '#1e2a3b', color: '#f7fafcff', border: '1px solid var(--border)',
+              padding: '7px 11px', borderRadius: 6, cursor: 'pointer',
+              fontWeight: 800, fontSize: 16
+            }}>
               ⛶
             </button>
           </div>
@@ -629,46 +849,56 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               <TarjetaMetrica
                 titulo="Leads Nuevos"
                 valor={activos}
-                accentColor="#1B4F72"
-                icon="https://comutelperu.com/correo-cm/Iconos/nuevo.png"
-                subtitulo="Sin atender"
+                accentColor="#2d0cebff"
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>}
+
+                delta={12}
+                deltaLabel="vs ayer"
               />
               <TarjetaMetrica
-                titulo="Leads en Atención"
+                titulo="En Atención"
                 valor={leadsFiltrados.filter(l => l.estado === 'en_atencion').length}
-                accentColor="#D97706"
-                icon="https://comutelperu.com/correo-cm/Iconos/enatencion.png"
-                subtitulo="En atención ahora"
+                accentColor="#A78BFA"
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>}
+
+                delta={5}
+                deltaLabel="vs ayer"
               />
               <TarjetaMetrica
-                titulo="Leads a Tiempo"
+                titulo="A Tiempo"
                 valor={aTiempo}
-                accentColor="var(--color-green)"
-                icon="https://comutelperu.com/correo-cm/Iconos/atiempo.png"
-                subtitulo="SLA ≤ 15 min"
+                accentColor="#079225ff"
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+
+                delta={8}
+                deltaLabel="vs semana"
               />
               <TarjetaMetrica
-                titulo="Leads Atrasados"
+                titulo="Atrasados"
                 valor={atrasados}
-                accentColor="var(--color-red)"
-                icon="https://comutelperu.com/correo-cm/Iconos/atrasado.png"
-                subtitulo="SLA > 15 min"
+                accentColor="#F43F5E"
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>}
+
+                delta={-3}
+                deltaLabel="vs ayer"
               />
               <TarjetaMetrica
                 titulo="Leads Cerrados"
                 valor={cerrados}
-                accentColor="#6B7280"
-                icon="https://comutelperu.com/correo-cm/Logo/bloquear.png"
-                subtitulo="Venta · Neg. futura · No ef."
+                accentColor="#9CA3AF"
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+
+                delta={6}
+                deltaLabel="vs semana"
               />
             </div>
 
             {/* Charts Row 1: SLA por Vendedor + SLA Atendido + Por Estado */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div className="card" style={{ padding: '14px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA por Vendedor</div>
-                <DashboardTecnicos leads={leadsFiltrados} fetchedAt={fetchedAt} />
-              </div>
+
+
+
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 20, marginBottom: 20 }}>
               <div className="card" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA Atendido (%)</div>
                 <div style={{ width: '100%', height: 130 }}>
@@ -676,10 +906,12 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                 </div>
               </div>
               <div className="card" style={{ padding: '14px 18px' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA por Vendedor</div>
+                <DashboardTecnicos leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} />
+              </div>
+              <div className="card" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Estado</div>
-                <div style={{ width: '100%', height: 180 }}>
-                  <GraficoEstados leads={leadsFiltrados} />
-                </div>
+                <GraficoEstados leads={leadsFiltrados} />
               </div>
             </div>
 
@@ -689,15 +921,8 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Resumen SLA</div>
                 <TablaResumen leads={leadsAbiertos.slice(0, 3)} fetchedAt={fetchedAt} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div className="card" style={{ padding: '14px 18px' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Tipo</div>
-                  <GraficoBarrasTop data={dataMotivos} color="#6366f1" />
-                </div>
-                <div className="card" style={{ padding: '14px 18px' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Canal</div>
-                  <GraficoBarrasTop data={dataCanales} color="#6B7280" />
-                </div>
+              <div className="card" style={{ padding: '14px 18px' }}>
+                <GraficoBarrasTop dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
               </div>
             </div>
 
@@ -720,7 +945,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                   Ver todo ({leadsFiltrados.length}) →
                 </button>
               </div>
-              <TablaLeads leads={leadsFiltrados.slice(0, 5)} fetchedAt={fetchedAt} tecnicos={tecnicos} vendedores={vendedores} onActualizar={() => cargarDatos(true)} onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))} isAdmin={isAdmin} />
+              <TablaLeads leads={leadsFiltrados.slice(0, 3)} fetchedAt={fetchedAt} tecnicos={tecnicos} vendedores={vendedores} onActualizar={() => cargarDatos(true)} onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))} isAdmin={isAdmin} />
             </div>
           </>
         ) : (
