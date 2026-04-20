@@ -7,9 +7,32 @@ function getCtx() {
   return ctx;
 }
 
-// Sonido de nuevo lead (tono agradable, doble beep)
-export function playNuevoLead() {
+// Sonido de nuevo lead dinámico por asesor (o fallback a doble beep)
+export function playNuevoLead(vendedorNombre = '') {
   try {
+    const SoundsMap = {
+      'erimay': 'https://comutelperu.com/correo-cm/Logo/pipe-sound-effect.mp3',
+      'sthefania': 'https://comutelperu.com/correo-cm/Logo/mario-bros-1up.mp3',
+      'estefany': 'https://comutelperu.com/correo-cm/Logo/smb_powerup.wav'
+    };
+
+    const asName = vendedorNombre.toLowerCase();
+    let urlToPlay = null;
+
+    if (asName.includes('erimay')) urlToPlay = SoundsMap['erimay'];
+    else if (asName.includes('sthefania') || asName.includes('stefania')) urlToPlay = SoundsMap['sthefania'];
+    else if (asName.includes('estefany') || asName.includes('stephany')) urlToPlay = SoundsMap['estefany'];
+
+    // Si tiene un MP3 asignado, lo toca
+    if (urlToPlay) {
+      const audio = new Audio(urlToPlay);
+      // Bajamos el volumen base solo para el sonido agudo de Sthefania
+      audio.volume = (asName.includes('sthefania') || asName.includes('stefania')) ? 0.2 : 0.5;
+      audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+      return;
+    }
+
+    // FALLBACK por defecto: Sonido de nuevo lead (tono agradable, doble beep)
     const c = getCtx();
     [0, 0.15].forEach(delay => {
       const osc = c.createOscillator();
@@ -23,50 +46,29 @@ export function playNuevoLead() {
       osc.start(c.currentTime + delay);
       osc.stop(c.currentTime + delay + 0.12);
     });
-  } catch (e) { console.warn('Audio no disponible:', e); }
+  } catch (e) {
+    console.warn('Audio no disponible:', e);
+  }
 }
 
-// Sonido de venta efectiva (fanfarria festiva)
+// Sonido de venta efectiva (archivo WAV externo)
 export function playVentaEfectiva() {
   try {
-    const c = getCtx();
-    // Melodía ascendente: Do - Mi - Sol - Do alta
-    const notas = [
-      { freq: 523, delay: 0,    dur: 0.15 },
-      { freq: 659, delay: 0.16, dur: 0.15 },
-      { freq: 784, delay: 0.32, dur: 0.15 },
-      { freq: 1047, delay: 0.48, dur: 0.35 },
-    ];
-    notas.forEach(({ freq, delay, dur }) => {
-      const osc = c.createOscillator();
-      const gain = c.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.35, c.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + dur);
-      osc.connect(gain);
-      gain.connect(c.destination);
-      osc.start(c.currentTime + delay);
-      osc.stop(c.currentTime + delay + dur);
-    });
-  } catch (e) { console.warn('Audio no disponible:', e); }
+    const audio = new Audio('https://comutelperu.com/correo-cm/Logo/smb_world_clear.wav');
+    audio.volume = 0.5; // Puedes ajustar el volumen del archivo de 0.0 a 1.0 aquí si suena muy fuerte
+    audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+  } catch (e) {
+    console.warn('Audio no disponible:', e);
+  }
 }
 
-// Sonido de alerta SLA (tono urgente, más grave)
+// Sonido de alerta SLA (archivo WAV externo)
 export function playAlertaSLA() {
   try {
-    const c = getCtx();
-    [0, 0.2, 0.4].forEach(delay => {
-      const osc = c.createOscillator();
-      const gain = c.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 440;
-      gain.gain.setValueAtTime(0.25, c.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + 0.15);
-      osc.connect(gain);
-      gain.connect(c.destination);
-      osc.start(c.currentTime + delay);
-      osc.stop(c.currentTime + delay + 0.15);
-    });
-  } catch (e) { console.warn('Audio no disponible:', e); }
+    const audio = new Audio('https://comutelperu.com/correo-cm/Logo/smb_warning.wav');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+  } catch (e) {
+    console.warn('Audio no disponible:', e);
+  }
 }
