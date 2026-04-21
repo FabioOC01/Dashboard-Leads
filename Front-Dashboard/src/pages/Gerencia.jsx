@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getLeads, getMetricas, getMetricasTecnico, getTecnicos, getVendedores } from '../api/leads';
-import { useSocket } from '../hooks/useSocket';
+import { useSocket, emitTestAudio } from '../hooks/useSocket';
 import TarjetaMetrica from '../components/TarjetaMetrica';
 import TablaLeads from '../components/TablaLeads';
 import TablaResumen from '../components/TablaResumen';
@@ -78,7 +78,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [filtroFecha, setFiltroFecha] = useState('mes');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [ultimaActualizacion, setUltima] = useState(new Date());
-  const { ultimoEvento, conectado } = useSocket();
+  const { ultimoEvento, conectado, testAudio } = useSocket();
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
@@ -97,11 +97,22 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'detalle'
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showVendedores, setShowVendedores] = useState(false);
+  const [showTestMenu, setShowTestMenu] = useState(false);
+  const testMenuRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!showTestMenu) return;
+    const handler = (e) => {
+      if (testMenuRef.current && !testMenuRef.current.contains(e.target)) setShowTestMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTestMenu]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -327,6 +338,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     return () => clearInterval(iv);
   }, [leads, fetchedAt, addToast]);
 
+  // ── Test de audio global (broadcast desde admin) ──
+  useEffect(() => {
+    if (!testAudio) return;
+    const { tipo } = testAudio;
+    if (tipo === 'nuevo_lead')  { playNuevoLead(''); addToast('🔊 Test global: Nuevo Lead', 'info'); }
+    if (tipo === 'sla')         { playAlertaSLA();   addToast('⚠️ Test global: Alerta SLA', 'warning'); }
+    if (tipo === 'venta')       { playVentaEfectiva(); addToast('🎉 Test global: Venta Efectiva', 'success'); }
+    if (tipo === 'inicio')      { playInicioJornada(); addToast('🟢 Test global: Inicio jornada', 'success'); }
+    if (tipo === 'fin')         { playFinJornada();    addToast('🔴 Test global: Fin jornada', 'info'); }
+  }, [testAudio]);
+
   const enHorarioHabil = (() => {
     const t = new Date(currentTime.toLocaleString('en-US', { timeZone: 'America/Lima' }));
     const day = t.getDay();
@@ -435,9 +457,9 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   // Chart Data: Canales
   const CANAL_ICONS = {
-    store: 'https://comutelperu.com/correo-cm/Iconos/odoo.png',
+    store: 'https://comutelperu.com/correo-cm/Iconos/odoo.png?v=2',
     whatsapp: 'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
-    facebook: 'https://comutelperu.com/correo-cm/Iconos/facebook.png',
+    facebook: 'https://comutelperu.com/correo-cm/Iconos/facebook.png?v=2',
     instagram: 'https://comutelperu.com/correo-cm/Iconos/instagram.png',
     web: 'https://comutelperu.com/correo-cm/Logo/ISO.png',
   };
@@ -555,123 +577,117 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
             {/* Estado */}
             <FilterGroup label="Estado" defaultOpen={false} badge={filtroEstado ? 1 : null}>
-              <button onClick={() => setFiltroEstado('')} style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: filtroEstado === '' ? '#253347' : 'transparent',
-                color: filtroEstado === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
-              }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4a5c70', flexShrink: 0 }} />
-                Todos los estados
-              </button>
-              {estadosUnicos.map(e => (
-                <button key={e} onClick={() => setFiltroEstado(e)} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                  padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  background: filtroEstado === e ? (ESTADO_COLORS[e] || '#2f6fd4') + '22' : 'transparent',
-                  color: filtroEstado === e ? (ESTADO_COLORS[e] || '#fff') : '#8899aa',
-                  fontSize: 12, fontWeight: filtroEstado === e ? 600 : 400, transition: 'all 0.15s',
-                }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: ESTADO_COLORS[e] || '#6b7280', flexShrink: 0 }} />
-                  {ESTADO_LABELS[e] || e}
-                </button>
-              ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                <button onClick={() => setFiltroEstado('')} style={{
+                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
+                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
+                  transition: 'all 0.15s',
+                  background: filtroEstado === '' ? '#2f6fd4' : '#253347',
+                  color: filtroEstado === '' ? '#fff' : '#6b84a0',
+                }}>Todos</button>
+                {estadosUnicos.map(e => {
+                  const active = filtroEstado === e;
+                  const col = ESTADO_COLORS[e] || '#2f6fd4';
+                  return (
+                    <button key={e} onClick={() => setFiltroEstado(e)} style={{
+                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontSize: 11, fontWeight: 600, textAlign: 'center', transition: 'all 0.15s',
+                      background: active ? col : '#253347',
+                      color: active ? '#fff' : '#6b84a0',
+                    }}>{ESTADO_LABELS[e] || e}</button>
+                  );
+                })}
+              </div>
             </FilterGroup>
 
             <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
 
             {/* Categoría */}
             <FilterGroup label="Categoría" defaultOpen={false} badge={filtroTipo ? 1 : null}>
-              <button onClick={() => setFiltroTipo('')} style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: filtroTipo === '' ? '#253347' : 'transparent',
-                color: filtroTipo === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
-              }}>
-                <span style={{ fontSize: 14 }}>⊞</span> Todas
-              </button>
-              {tiposUnicos.map(t => (
-                <button key={t} onClick={() => setFiltroTipo(t)} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                  padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  background: filtroTipo === t ? '#2f6fd422' : 'transparent',
-                  color: filtroTipo === t ? '#60a5fa' : '#8899aa',
-                  fontSize: 12, fontWeight: filtroTipo === t ? 600 : 400, transition: 'all 0.15s',
-                }}>
-                  {TIPO_ICONS[t?.toLowerCase()]
-                    ? <img src={TIPO_ICONS[t.toLowerCase()]} alt={t} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />
-                    : <span style={{ fontSize: 13 }}>●</span>}
-                  <span style={{ textTransform: 'capitalize' }}>{t}</span>
-                </button>
-              ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                <button onClick={() => setFiltroTipo('')} style={{
+                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
+                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
+                  transition: 'all 0.15s',
+                  background: filtroTipo === '' ? '#2f6fd4' : '#253347',
+                  color: filtroTipo === '' ? '#fff' : '#6b84a0',
+                }}>Todas</button>
+                {tiposUnicos.map(t => (
+                  <button key={t} onClick={() => setFiltroTipo(t)} style={{
+                    padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600, textAlign: 'center',
+                    textTransform: 'capitalize', transition: 'all 0.15s',
+                    background: filtroTipo === t ? '#2f6fd4' : '#253347',
+                    color: filtroTipo === t ? '#fff' : '#6b84a0',
+                  }}>{t}</button>
+                ))}
+              </div>
             </FilterGroup>
 
             <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
 
             {/* Canal */}
             <FilterGroup label="Canal" defaultOpen={false} badge={filtroCanal ? 1 : null}>
-              <button onClick={() => setFiltroCanal('')} style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: filtroCanal === '' ? '#253347' : 'transparent',
-                color: filtroCanal === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
-              }}>
-                <span style={{ fontSize: 14 }}>⊞</span> Todos
-              </button>
-              {canalesUnicos.map(c => {
-                const key = c.toLowerCase();
-                return (
-                  <button key={c} onClick={() => setFiltroCanal(c)} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                    padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    background: filtroCanal === c ? (CANAL_COLORS[key] || '#2f6fd4') + '22' : 'transparent',
-                    color: filtroCanal === c ? (CANAL_COLORS[key] || '#60a5fa') : '#8899aa',
-                    fontSize: 12, fontWeight: filtroCanal === c ? 600 : 400, transition: 'all 0.15s',
-                  }}>
-                    {CANAL_ICONS[key]
-                      ? <img src={CANAL_ICONS[key]} alt={c} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} />
-                      : <span style={{ width: 8, height: 8, borderRadius: '50%', background: CANAL_COLORS[key] || '#6b7280', flexShrink: 0, display: 'inline-block' }} />}
-                    <span style={{ textTransform: 'capitalize' }}>{c}</span>
-                  </button>
-                );
-              })}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                <button onClick={() => setFiltroCanal('')} style={{
+                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
+                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
+                  transition: 'all 0.15s',
+                  background: filtroCanal === '' ? '#2f6fd4' : '#253347',
+                  color: filtroCanal === '' ? '#fff' : '#6b84a0',
+                }}>Todos</button>
+                {canalesUnicos.map(c => {
+                  const key = c.toLowerCase();
+                  const active = filtroCanal === c;
+                  const col = CANAL_COLORS[key] || '#2f6fd4';
+                  return (
+                    <button key={c} onClick={() => setFiltroCanal(c)} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontSize: 11, fontWeight: 600, transition: 'all 0.15s',
+                      background: active ? col : '#253347',
+                      color: active ? '#fff' : '#6b84a0',
+                    }}>
+                      {CANAL_ICONS[key] && (
+                        <img src={CANAL_ICONS[key]} alt={c}
+                          style={{ width: 13, height: 13, objectFit: 'contain', flexShrink: 0,
+                            filter: active ? 'brightness(10)' : 'none', transition: 'filter 0.15s' }} />
+                      )}
+                      <span style={{ textTransform: 'capitalize' }}>{c}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </FilterGroup>
 
             <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
 
             {/* Vendedor */}
             <FilterGroup label="Vendedor" defaultOpen={false} badge={filtroVendedor ? 1 : null}>
-              <button onClick={() => setFiltroVendedor('')} style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: filtroVendedor === '' ? '#253347' : 'transparent',
-                color: filtroVendedor === '' ? '#fff' : '#6b84a0', fontSize: 12, fontWeight: 500,
-              }}>
-                <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#2d3d52', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#8899aa', flexShrink: 0 }}>·</span>
-                Todos
-              </button>
-              {vendedoresUnicos.map(v => {
-                const initials = v.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-                const hue = v.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
-                return (
-                  <button key={v} onClick={() => setFiltroVendedor(v)} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                    padding: '6px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    background: filtroVendedor === v ? '#2f6fd422' : 'transparent',
-                    color: filtroVendedor === v ? '#60a5fa' : '#8899aa',
-                    fontSize: 12, fontWeight: filtroVendedor === v ? 600 : 400, transition: 'all 0.15s',
-                    textAlign: 'left',
-                  }}>
-                    <span style={{
-                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                      background: `hsl(${hue},45%,35%)`, display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 9, fontWeight: 700,
-                      color: `hsl(${hue},60%,85%)`
-                    }}>{initials}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
-                  </button>
-                );
-              })}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                <button onClick={() => setFiltroVendedor('')} style={{
+                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
+                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
+                  transition: 'all 0.15s',
+                  background: filtroVendedor === '' ? '#2f6fd4' : '#253347',
+                  color: filtroVendedor === '' ? '#fff' : '#6b84a0',
+                }}>Todos</button>
+                {vendedoresUnicos.map(v => {
+                  const active = filtroVendedor === v;
+                  const hue = v.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+                  const firstName = v.split(' ')[0];
+                  return (
+                    <button key={v} onClick={() => setFiltroVendedor(v)} style={{
+                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontSize: 11, fontWeight: 600, textAlign: 'center',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      transition: 'all 0.15s',
+                      background: active ? `hsl(${hue},55%,38%)` : '#253347',
+                      color: active ? '#fff' : '#6b84a0',
+                    }}>{firstName}</button>
+                  );
+                })}
+              </div>
             </FilterGroup>
 
           </div>
@@ -779,6 +795,50 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             {/* Administrar Vendedores y Probar Alertas (Solo Admin) */}
             {isAdmin && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div ref={testMenuRef} style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowTestMenu(v => !v)}
+                    title="Prueba de audio global — todos los clientes escuchan"
+                    style={{
+                      padding: '6px 10px', borderRadius: 6, border: '1px solid #10b98155',
+                      background: showTestMenu ? '#10b98130' : '#10b98118', color: '#10b981',
+                      cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                  >
+                    🌐 Test Global
+                  </button>
+                  {showTestMenu && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      borderRadius: 10, padding: 6, zIndex: 100,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                      display: 'flex', flexDirection: 'column', gap: 3, minWidth: 190,
+                    }}>
+                      {[
+                        { tipo: 'nuevo_lead', label: '🟢 Nuevo Lead',       color: '#38bdf8', play: () => playNuevoLead('') },
+                        { tipo: 'sla',        label: '⚠️ Alerta SLA',       color: '#f59e0b', play: () => playAlertaSLA() },
+                        { tipo: 'venta',      label: '🎉 Venta Efectiva',    color: '#10b981', play: () => playVentaEfectiva() },
+                        { tipo: 'inicio',     label: '☀️ Inicio de Jornada', color: '#a78bfa', play: () => playInicioJornada() },
+                        { tipo: 'fin',        label: '🌙 Fin de Jornada',    color: '#6b7280', play: () => playFinJornada() },
+                      ].map(({ tipo, label, color, play }) => (
+                        <button key={tipo} onClick={() => { play(); emitTestAudio(tipo); setShowTestMenu(false); }} style={{
+                          padding: '8px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                          background: 'transparent', color: 'var(--text-main)',
+                          fontSize: 13, fontWeight: 600, textAlign: 'left',
+                          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.15s',
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.background = color + '22'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     playAlertaSLA();
@@ -977,7 +1037,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Resumen SLA</div>
-                <TablaResumen leads={leadsAbiertos.slice(0, 3)} fetchedAt={fetchedAt} />
+                <TablaResumen leads={leadsFiltrados.slice(0, 3)} fetchedAt={fetchedAt} />
               </div>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <GraficoBarrasTop key={refreshKey} dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
