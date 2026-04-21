@@ -11,7 +11,7 @@ import GraficoDonut from '../components/GraficoDonut';
 import GraficoSLA from '../components/GraficoSLA';
 import GraficoEstados from '../components/GraficoEstados';
 import ToastContainer, { useToasts } from '../components/ToastContainer';
-import { playNuevoLead, playAlertaSLA, playVentaEfectiva } from '../utils/sounds';
+import { playNuevoLead, playAlertaSLA, playVentaEfectiva, playInicioJornada, playFinJornada } from '../utils/sounds';
 import confetti from 'canvas-confetti';
 import ModalVendedores from '../components/ModalVendedores';
 
@@ -59,7 +59,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [ultimaActualizacion, setUltima] = useState(new Date());
   const { ultimoEvento, conectado } = useSocket();
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [filtroCanal, setFiltroCanal] = useState('');
@@ -70,6 +70,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const { toasts, addToast, removeToast } = useToasts();
   const alertedLeads = useRef(new Set());
   const ventaConfettiTriggered = useRef(new Set());
+  const prevEnHorario = useRef(null);
 
   const [collapsed, setCollapsed] = useState(true);
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'detalle'
@@ -89,9 +90,9 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     }
   };
 
-  // Inicialización de Tema
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   const cargarDatos = useCallback(async (silent = false) => {
@@ -219,8 +220,12 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
     // Toast para nuevo lead
     if (tipo === 'nuevo') {
-      playNuevoLead();
-      addToast(`🟢 Nuevo lead: ${data.nombre || 'Sin nombre'} — Asesor: ${data.vendedor_nombre || data.asesor_asignado || 'Sin asignar'}`, 'success');
+      playNuevoLead(data.vendedor_nombre || '');
+      addToast({
+        title: '🟢 Nuevo Lead',
+        vendor: data.vendedor_nombre || data.asesor_asignado || 'Sin asignar',
+        detail: data.nombre || 'Sin nombre',
+      }, 'success');
     }
 
     // Confetti + sonido para venta efectiva (todos los clientes)
@@ -229,7 +234,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       !ventaConfettiTriggered.current.has(data.id)) {
       ventaConfettiTriggered.current.add(data.id);
       playVentaEfectiva();
-      addToast(`🎉 ¡Venta efectiva! ${data.nombre || 'Lead'} — ${data.vendedor_nombre || 'Sin asesor'}`, 'success');
+      addToast({
+        title: '🎉 ¡Venta Efectiva!',
+        vendor: data.vendedor_nombre || 'Sin asesor',
+        detail: data.nombre || 'Lead',
+      }, 'success');
       const duration = 4000;
       const end = Date.now() + duration;
       const colors = ['#27AE60', '#F1C40F', '#E74C3C', '#3498DB', '#9B59B6'];
@@ -261,7 +270,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
           if (t >= SLA_RESPUESTA - SLA_ALERTA_ANTES && t < SLA_RESPUESTA) {
             alertedLeads.current.add(key);
             playAlertaSLA();
-            addToast(`⚠️ SLA por vencer: ${l.nombre} — 1ra Respuesta — Quedan ${Math.ceil(SLA_RESPUESTA - t)} min`, 'warning');
+            addToast({
+              title: '⚠️ SLA por vencer — 1ra Respuesta',
+              vendor: l.vendedor_nombre || 'Sin asignar',
+              detail: `${l.nombre} · Quedan ${Math.ceil(SLA_RESPUESTA - t)} min`,
+            }, 'warning');
           }
         }
 
@@ -277,7 +290,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
           if (t >= SLA_COTIZACION - SLA_ALERTA_ANTES && t < SLA_COTIZACION) {
             alertedLeads.current.add(keyCot);
             playAlertaSLA();
-            addToast(`⚠️ SLA por vencer: ${l.nombre} — Cotización — Quedan ${Math.ceil(SLA_COTIZACION - t)} min`, 'danger');
+            addToast({
+              title: '⚠️ SLA por vencer — Cotización',
+              vendor: l.vendedor_nombre || 'Sin asignar',
+              detail: `${l.nombre} · Quedan ${Math.ceil(SLA_COTIZACION - t)} min`,
+            }, 'danger');
           }
         }
       });
@@ -295,6 +312,24 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     if (day === 6) return min >= 9 * 60 + 30 && min < 14 * 60;
     return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
   })();
+
+  // ── Melodía de inicio / fin de jornada ──
+  useEffect(() => {
+    // Ignorar la primera renderización (no sabemos el estado anterior)
+    if (prevEnHorario.current === null) {
+      prevEnHorario.current = enHorarioHabil;
+      return;
+    }
+    if (enHorarioHabil && !prevEnHorario.current) {
+      playInicioJornada();
+      addToast('🟢 ¡Inicio de jornada laboral! Buen día equipo 💪', 'success');
+    }
+    if (!enHorarioHabil && prevEnHorario.current) {
+      playFinJornada();
+      addToast('🔴 Fin de la jornada laboral. ¡Buen descanso! 🌙', 'info');
+    }
+    prevEnHorario.current = enHorarioHabil;
+  }, [enHorarioHabil]);
 
   const tiposUnicos = Array.from(new Set(leads.map(l => l.tipo || 'General')));
   const estadosUnicos = Array.from(new Set(leads.map(l => l.estado || 'nuevo')));
@@ -628,7 +663,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         {/* Links externos */}
         <div style={{ borderTop: '1px solid #2d3d52', padding: collapsed ? '8px 0' : '8px 12px' }}>
           {[
-            { href: `http://${window.location.hostname}:5174`, label: 'Vantio ', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
+            { href: `http://${window.location.hostname}:5174`, label: 'Vantio Planner', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
             { href: 'http://192.168.1.50', label: 'GLPI CM', icon: 'https://comutelperu.com/correo-cm/Iconos/10156352.png' },
           ].map(({ href, label, icon }) => (
             <a key={href} href={href} target="_blank" rel="noreferrer"
@@ -728,7 +763,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                   onClick={() => {
                     playAlertaSLA();
                     addToast("⚠️ Probando alerta crítica de SLA", "error");
-                    
+
                     setTimeout(() => {
                       playNuevoLead('Erimay');
                       addToast("🔊 Probando alerta lead: Erimay", "info");
@@ -761,6 +796,16 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                         if (Date.now() < end) requestAnimationFrame(frame);
                       })();
                     }, 7500);
+
+                    setTimeout(() => {
+                      playInicioJornada();
+                      addToast("🟢 Probando: Inicio de jornada laboral 💪", "success");
+                    }, 10500);
+
+                    setTimeout(() => {
+                      playFinJornada();
+                      addToast("🔴 Probando: Fin de jornada laboral 🌙", "info");
+                    }, 12500);
                   }}
                   title="Probar sonidos y alertas"
                   style={{
@@ -849,7 +894,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               <TarjetaMetrica
                 titulo="Leads Nuevos"
                 valor={activos}
-                accentColor="#2d0cebff"
+                accentColor="#38bdf8"
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>}
 
                 delta={12}
@@ -867,7 +912,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               <TarjetaMetrica
                 titulo="A Tiempo"
                 valor={aTiempo}
-                accentColor="#079225ff"
+                accentColor="#10b981"
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
 
                 delta={8}
@@ -899,17 +944,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div className="card" style={{ padding: '14px 18px' }}>
+              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA Atendido (%)</div>
                 <div style={{ width: '100%', height: 130 }}>
                   <GraficoSLA atendidos={aTiempo} total={total} />
                 </div>
               </div>
-              <div className="card" style={{ padding: '14px 18px' }}>
+              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA por Vendedor</div>
                 <DashboardTecnicos leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} />
               </div>
-              <div className="card" style={{ padding: '14px 18px' }}>
+              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Estado</div>
                 <GraficoEstados leads={leadsFiltrados} />
               </div>
@@ -917,17 +962,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
             {/* Charts Row 2: Resumen SLA (izq) + Por Tipo / Por Canal (der) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div className="card" style={{ padding: '14px 18px' }}>
+              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Resumen SLA</div>
                 <TablaResumen leads={leadsAbiertos.slice(0, 3)} fetchedAt={fetchedAt} />
               </div>
-              <div className="card" style={{ padding: '14px 18px' }}>
+              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <GraficoBarrasTop dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
               </div>
             </div>
 
             {/* Evolución Temporal (movida abajo) */}
-            <div className="card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+            <div className="card card-shimmer" style={{ padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Evolución Temporal de Leads</div>
               <div style={{ width: '100%', height: 220 }}>
                 <GraficoTiempo leads={leadsFiltrados} filtroFecha={filtroFecha} />

@@ -218,12 +218,33 @@ body {
   100% { background-position: 0% 0; }
 }
 
+@keyframes borderSweep {
+  0%   { left: -60%; }
+  100% { left: 120%; }
+}
+
 .kpi-card { animation: fadeSlideUp 0.35s ease both; }
 .kpi-card:nth-child(1){ animation-delay:.04s }
 .kpi-card:nth-child(2){ animation-delay:.09s }
 .kpi-card:nth-child(3){ animation-delay:.14s }
 .kpi-card:nth-child(4){ animation-delay:.19s }
 .kpi-card:nth-child(5){ animation-delay:.24s }
+
+.kpi-card::after,
+.card-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 55%; height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55) 50%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+  animation: borderSweep 2.8s ease-in-out infinite;
+}
+
+.card-shimmer {
+  position: relative;
+}
 
 .nav-item { transition: background .15s, color .15s; }
 .nav-item:hover { background: rgba(255,255,255,0.05) !important; }

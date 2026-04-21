@@ -11,9 +11,9 @@ function getCtx() {
 export function playNuevoLead(vendedorNombre = '') {
   try {
     const SoundsMap = {
-      'erimay': 'https://comutelperu.com/correo-cm/Logo/pipe-sound-effect.mp3',
-      'sthefania': 'https://comutelperu.com/correo-cm/Logo/mario-bros-1up.mp3',
-      'estefany': 'https://comutelperu.com/correo-cm/Logo/smb_powerup.wav'
+      'erimay': 'https://comutelperu.com/correo-cm/SoundsDashboard/erimay.mp3',
+      'sthefania': 'https://comutelperu.com/correo-cm/SoundsDashboard/sthefania.mp3',
+      'estefany': 'https://comutelperu.com/correo-cm/SoundsDashboard/estefany.wav'
     };
 
     const asName = vendedorNombre.toLowerCase();
@@ -51,12 +51,17 @@ export function playNuevoLead(vendedorNombre = '') {
   }
 }
 
-// Sonido de venta efectiva (archivo WAV externo)
+// Sonido de venta efectiva (dos archivos en secuencia)
 export function playVentaEfectiva() {
   try {
-    const audio = new Audio('https://comutelperu.com/correo-cm/Logo/smb_world_clear.wav');
-    audio.volume = 0.5; // Puedes ajustar el volumen del archivo de 0.0 a 1.0 aquí si suena muy fuerte
-    audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+    const sounds = [
+      'https://comutelperu.com/correo-cm/SoundsDashboard/venta1.wav',
+      'https://comutelperu.com/correo-cm/SoundsDashboard/venta2.wav',
+    ];
+    const url = sounds[Math.random() < 0.5 ? 0 : 1];
+    const a1 = new Audio(url);
+    a1.volume = 0.5;
+    a1.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) {
     console.warn('Audio no disponible:', e);
   }
@@ -65,10 +70,28 @@ export function playVentaEfectiva() {
 // Sonido de alerta SLA (archivo WAV externo)
 export function playAlertaSLA() {
   try {
-    const audio = new Audio('https://comutelperu.com/correo-cm/Logo/smb_warning.wav');
+    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/sla.wav');
     audio.volume = 0.5;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) {
     console.warn('Audio no disponible:', e);
   }
+}
+
+// ── Sonido de inicio de jornada ──
+export function playInicioJornada() {
+  try {
+    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/inicio.wav');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+  } catch (e) { console.warn('Audio inicio jornada no disponible:', e); }
+}
+
+// ── Sonido de fin de jornada ──
+export function playFinJornada() {
+  try {
+    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/fin.wav');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
+  } catch (e) { console.warn('Audio fin jornada no disponible:', e); }
 }
