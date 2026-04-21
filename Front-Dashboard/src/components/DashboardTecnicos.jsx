@@ -79,7 +79,7 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 2px 2px' }}>
       {sorted.map((s, i) => {
-        const color = s.pct >= 85 ? '#10b981' : s.pct >= 65 ? '#f59e0b' : '#f43f5e';
+        const color = s.pct >= 70 ? '#10b981' : s.pct > 50 ? '#f59e0b' : '#f43f5e';
         const initials = s.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
         const photo = VENDOR_PHOTOS[s.nombre.split(' ')[0].toLowerCase()] || null;
         const firstName = s.nombre.split(' ')[0];
