@@ -40,9 +40,29 @@ function FilterGroup({ label, children, defaultOpen = true, badge }) {
   );
 }
 
-const SLA_RESPUESTA = 15; // minutos
-const SLA_COTIZACION = 240; // minutos (4 horas)
-const SLA_ALERTA_ANTES = 5; // alertar X minutos antes
+const SLA_RESPUESTA = 15;
+const SLA_COTIZACION = 240;
+const SLA_ALERTA_ANTES = 5;
+
+function isHorarioHabil(ts = Date.now()) {
+  const t = new Date(new Date(ts).toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const day = t.getDay();
+  const min = t.getHours() * 60 + t.getMinutes();
+  if (day === 0) return false;
+  if (day === 6) return min >= 9 * 60 + 30 && min < 14 * 60;
+  return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
+}
+
+function businessMinutesSince(fromTs) {
+  if (!isHorarioHabil()) return 0;
+  const toLima = t => new Date(new Date(t).toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const fromLima = toLima(fromTs);
+  const nowLima  = toLima(Date.now());
+  const BIZ_START = 9 * 60 + 30;
+  const fromMin = fromLima.getHours() * 60 + fromLima.getMinutes() + fromLima.getSeconds() / 60;
+  const nowMin  = nowLima.getHours()  * 60 + nowLima.getMinutes()  + nowLima.getSeconds()  / 60;
+  return Math.max(0, nowMin - Math.max(fromMin, BIZ_START));
+}
 
 const FILTROS_FECHA = [
   { value: 'dia', label: 'Hoy' },
@@ -64,6 +84,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [filtroCanal, setFiltroCanal] = useState('');
   const [fetchedAt, setFetchedAt] = useState(Date.now());
+  const [refreshKey, setRefreshKey] = useState(0);
   const [tecnicos, setTecnicos] = useState([]);
   const [vendedores, setVendedores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -156,7 +177,10 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   // Auto-refresh cada 60s para mantener los minutos hábiles actualizados
   useEffect(() => {
-    const iv = setInterval(() => cargarDatos(), 60000);
+    const iv = setInterval(() => {
+      cargarDatos(true);
+      setRefreshKey(k => k + 1);
+    }, 60000);
     return () => clearInterval(iv);
   }, [cargarDatos]);
 
@@ -253,14 +277,13 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   // ── Alerta SLA por vencer (cada 30s) ──
   useEffect(() => {
     const check = () => {
-      const elapsed = (Date.now() - fetchedAt) / 60000;
       leads.forEach(l => {
         const key = `${l.id}-resp`;
         const keyCot = `${l.id}-cot`;
 
         // SLA Primera Respuesta
         if (l.estado === 'nuevo' && !alertedLeads.current.has(key)) {
-          const leadElapsed = l._socketAt != null ? (Date.now() - l._socketAt) / 60000 : elapsed;
+          const leadElapsed = l._socketAt != null ? businessMinutesSince(l._socketAt) : businessMinutesSince(fetchedAt);
           let t = 0;
           if (l.min_esperando_respuesta != null) t = l.min_esperando_respuesta + leadElapsed;
           else {
@@ -280,7 +303,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
         // SLA Cotización
         if (l.estado === 'en_atencion' && !alertedLeads.current.has(keyCot)) {
-          const leadElapsed = l._socketAt != null ? (Date.now() - l._socketAt) / 60000 : elapsed;
+          const leadElapsed = l._cotizacionAt != null ? businessMinutesSince(l._cotizacionAt) : businessMinutesSince(fetchedAt);
           let t = 0;
           if (l.min_esperando_cotizacion != null) t = l.min_esperando_cotizacion + leadElapsed;
           else if (l.ts_primera_respuesta) {
@@ -375,9 +398,6 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const cerrados = leadsFiltrados.filter(l => ESTADOS_CERRADOS.includes(l.estado)).length;
   const leadsAbiertos = leadsFiltrados.filter(l => !ESTADOS_CERRADOS.includes(l.estado));
 
-  // Offset en minutos transcurridos desde la última carga de la API
-  const elapsedMin = (currentTime.getTime() - fetchedAt) / 60000;
-
   let aTiempo = 0;
   let atrasados = 0;
 
@@ -386,9 +406,9 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     if (l.ts_primera_respuesta) {
       t = parseFloat(l.min_primera_respuesta) || 0;
     } else if (l._socketAt != null) {
-      t = enHorarioHabil ? (currentTime.getTime() - l._socketAt) / 60000 : parseFloat(l.min_esperando_respuesta) || 0;
+      t = businessMinutesSince(l._socketAt);
     } else if (l.min_esperando_respuesta != null) {
-      t = parseFloat(l.min_esperando_respuesta) + elapsedMin;
+      t = parseFloat(l.min_esperando_respuesta) + businessMinutesSince(fetchedAt);
     } else {
       t = 0;
     }
@@ -947,16 +967,16 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA Atendido (%)</div>
                 <div style={{ width: '100%', height: 130 }}>
-                  <GraficoSLA atendidos={aTiempo} total={total} />
+                  <GraficoSLA key={refreshKey} atendidos={aTiempo} total={total} />
                 </div>
               </div>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA por Vendedor</div>
-                <DashboardTecnicos leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} />
+                <DashboardTecnicos key={refreshKey} leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} />
               </div>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Estado</div>
-                <GraficoEstados leads={leadsFiltrados} />
+                <GraficoEstados key={refreshKey} leads={leadsFiltrados} />
               </div>
             </div>
 
@@ -967,7 +987,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                 <TablaResumen leads={leadsAbiertos.slice(0, 3)} fetchedAt={fetchedAt} />
               </div>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <GraficoBarrasTop dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
+                <GraficoBarrasTop key={refreshKey} dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
               </div>
             </div>
 
@@ -975,7 +995,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             <div className="card card-shimmer" style={{ padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Evolución Temporal de Leads</div>
               <div style={{ width: '100%', height: 220 }}>
-                <GraficoTiempo leads={leadsFiltrados} filtroFecha={filtroFecha} />
+                <GraficoTiempo key={refreshKey} leads={leadsFiltrados} filtroFecha={filtroFecha} />
               </div>
             </div>
 

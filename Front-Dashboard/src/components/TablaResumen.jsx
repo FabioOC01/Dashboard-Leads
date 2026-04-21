@@ -18,17 +18,25 @@ function isHorarioHabil() {
   return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
 }
 
+function businessMinutesSince(fromTs) {
+  if (!isHorarioHabil()) return 0;
+  const toLima = t => new Date(new Date(t).toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const fromLima = toLima(fromTs);
+  const nowLima  = toLima(Date.now());
+  const BIZ_START = 9 * 60 + 30;
+  const fromMin = fromLima.getHours() * 60 + fromLima.getMinutes() + fromLima.getSeconds() / 60;
+  const nowMin  = nowLima.getHours()  * 60 + nowLima.getMinutes()  + nowLima.getSeconds()  / 60;
+  return Math.max(0, nowMin - Math.max(fromMin, BIZ_START));
+}
+
 function getMinutosPrimeraRespuesta(lead, fetchedAt) {
   if (lead.ts_primera_respuesta) {
     if (lead.min_primera_respuesta != null) return parseFloat(lead.min_primera_respuesta);
     return null;
   }
-  if (lead._socketAt != null)
-    return isHorarioHabil() ? (Date.now() - lead._socketAt) / 60000 : parseFloat(lead.min_esperando_respuesta) || 0;
-  if (lead.min_esperando_respuesta != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return parseFloat(lead.min_esperando_respuesta) + elapsed;
-  }
+  if (lead._socketAt != null) return businessMinutesSince(lead._socketAt);
+  if (lead.min_esperando_respuesta != null)
+    return parseFloat(lead.min_esperando_respuesta) + businessMinutesSince(fetchedAt);
   return null;
 }
 
@@ -36,32 +44,23 @@ const ESTADOS_CERRADOS = ['venta_efectiva', 'no_efectiva', 'negociacion_futuro']
 
 function getMinutosCotizacion(lead, fetchedAt) {
   if (lead.min_cotizacion != null && parseFloat(lead.min_cotizacion) > 0) return parseFloat(lead.min_cotizacion);
-  if (ESTADOS_CERRADOS.includes(lead.estado)) {
+  if (ESTADOS_CERRADOS.includes(lead.estado))
     return lead.min_cotizacion_final != null ? parseFloat(lead.min_cotizacion_final) : null;
-  }
-  if (lead._cotizacionAt != null)
-    return isHorarioHabil() ? (Date.now() - lead._cotizacionAt) / 60000 : parseFloat(lead.min_esperando_cotizacion) || 0;
-  if (lead.min_esperando_cotizacion != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return parseFloat(lead.min_esperando_cotizacion) + elapsed;
-  }
+  if (lead._cotizacionAt != null) return businessMinutesSince(lead._cotizacionAt);
+  if (lead.min_esperando_cotizacion != null)
+    return parseFloat(lead.min_esperando_cotizacion) + businessMinutesSince(fetchedAt);
   return null;
 }
 
 function getMinutosSoporte(lead, fetchedAt) {
-  if (['venta_efectiva', 'no_efectiva', 'negociacion_futuro'].includes(lead.estado)) {
+  if (['venta_efectiva', 'no_efectiva', 'negociacion_futuro'].includes(lead.estado))
     return lead.min_soporte_final != null ? parseFloat(lead.min_soporte_final) : null;
-  }
-  if (lead.estado === 'cotizado_tecnico') {
+  if (lead.estado === 'cotizado_tecnico')
     return lead.min_soporte_cotizacion != null ? parseFloat(lead.min_soporte_cotizacion) : null;
-  }
   if (lead.estado !== 'derivado') return null;
-  if (lead._derivadoAt != null)
-    return isHorarioHabil() ? (Date.now() - lead._derivadoAt) / 60000 : parseFloat(lead.min_esperando_soporte) || 0;
-  if (lead.min_esperando_soporte != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return parseFloat(lead.min_esperando_soporte) + elapsed;
-  }
+  if (lead._derivadoAt != null) return businessMinutesSince(lead._derivadoAt);
+  if (lead.min_esperando_soporte != null)
+    return parseFloat(lead.min_esperando_soporte) + businessMinutesSince(fetchedAt);
   return null;
 }
 

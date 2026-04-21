@@ -9,6 +9,17 @@ function isHorarioHabil() {
   return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
 }
 
+function businessMinutesSince(fromTs) {
+  if (!isHorarioHabil()) return 0;
+  const toLima = t => new Date(new Date(t).toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const fromLima = toLima(fromTs);
+  const nowLima  = toLima(Date.now());
+  const BIZ_START = 9 * 60 + 30;
+  const fromMin = fromLima.getHours() * 60 + fromLima.getMinutes() + fromLima.getSeconds() / 60;
+  const nowMin  = nowLima.getHours()  * 60 + nowLima.getMinutes()  + nowLima.getSeconds()  / 60;
+  return Math.max(0, nowMin - Math.max(fromMin, BIZ_START));
+}
+
 const VENDOR_PHOTOS = {
   'erimay':    'https://comutelperu.com/correo-cm/Fotos/ERIMAY.png',
   'estefany':  'https://comutelperu.com/correo-cm/Fotos/ESTEFANY.png',
@@ -29,7 +40,7 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
     return () => clearTimeout(t);
   }, []);
 
-  const elapsed = isHorarioHabil() ? (Date.now() - (fetchedAt || Date.now())) / 60000 : 0;
+  const elapsed = businessMinutesSince(fetchedAt || Date.now());
 
   const sellers = {};
 
@@ -48,7 +59,7 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
     if (l.ts_primera_respuesta) {
       wTime = parseFloat(l.min_primera_respuesta) || 0;
     } else if (l._socketAt != null) {
-      wTime = isHorarioHabil() ? (Date.now() - l._socketAt) / 60000 : parseFloat(l.min_esperando_respuesta) || 0;
+      wTime = businessMinutesSince(l._socketAt);
     } else if (l.min_esperando_respuesta != null) {
       wTime = parseFloat(l.min_esperando_respuesta) + elapsed;
     } else {

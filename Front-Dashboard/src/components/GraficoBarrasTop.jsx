@@ -6,6 +6,16 @@ const CANAL_COLORS = {
   Instagram: '#EC4899', Web: '#38BDF8', Tiktok: '#9CA3AF', Youtube: '#EF4444',
 };
 
+const CANAL_ICONS = {
+  store:     'https://comutelperu.com/correo-cm/Iconos/odoo.png?v=2',
+  whatsapp:  'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
+  facebook:  'https://comutelperu.com/correo-cm/Iconos/facebook.png',
+  instagram: 'https://comutelperu.com/correo-cm/Iconos/instagram.png',
+  web:       'https://comutelperu.com/correo-cm/Logo/ISO.png',
+  tiktok:    'https://comutelperu.com/correo-cm/Iconos/tiktok.png',
+  youtube:   'https://comutelperu.com/correo-cm/Iconos/youtube.png',
+};
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -24,22 +34,28 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-/**
- * GraficoBarrasTop — Combined Tipo/Canal toggle chart
- *
- * Props:
- *   dataTipo   – array [{name, value, icon?}]  (por tipo)
- *   dataCanal  – array [{name, value, color?, icon?}]  (por canal)
- *   colorTipo  – default bar color for tipo view
- *
- * Legacy single-dataset mode still works:
- *   data, color, tipo
- */
+function LogoTick({ x, y, payload }) {
+  const key = payload.value?.toLowerCase();
+  const icon = CANAL_ICONS[key];
+  if (!icon) {
+    return (
+      <text x={x} y={y + 12} textAnchor="middle"
+        style={{ fill: 'var(--text-dim)', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }}>
+        {payload.value}
+      </text>
+    );
+  }
+  return (
+    <g transform={`translate(${x - 11}, ${y + 2})`}>
+      <image href={icon} width={22} height={22} style={{ borderRadius: 4 }} />
+    </g>
+  );
+}
+
 export default function GraficoBarrasTop({
   dataTipo,
   dataCanal,
   colorTipo = '#6366f1',
-  // Legacy props
   data,
   color = 'var(--accent)',
   tipo = 'tipo',
@@ -55,7 +71,6 @@ export default function GraficoBarrasTop({
     return () => clearInterval(interval);
   }, [hasDual]);
 
-  // Determine active dataset
   let activeData, activeColor, activeMode;
   if (hasDual) {
     activeData = tab === 'tipo' ? dataTipo : dataCanal;
@@ -84,46 +99,33 @@ export default function GraficoBarrasTop({
     c: activeMode === 'canal' ? (CANAL_COLORS[d.name] || d.color || activeColor) : activeColor,
   }));
 
-  const title = activeMode === 'canal' ? 'Por Canal de Ingreso' : 'Por Tipo de Ingreso';
+  const isCanal = activeMode === 'canal';
+  const title = isCanal ? 'Por Canal de Ingreso' : 'Por Tipo de Ingreso';
 
   return (
     <div style={{ width: '100%' }}>
-      {/* Header with title + toggle */}
       {hasDual && (
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
           marginBottom: 12,
         }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{title}</div>
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{title}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <svg width={14} height={14} viewBox="0 0 24 24" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="12" cy="12" r="10" fill="none" stroke="var(--track)" strokeWidth="4" />
               <circle cx="12" cy="12" r="10" fill="none" stroke="var(--accent)" strokeWidth="4"
                 strokeDasharray="62.83"
-                style={{
-                  strokeDashoffset: '62.83',
-                  animation: 'circletimer 10s linear infinite'
-                }} />
+                style={{ strokeDashoffset: '62.83', animation: 'circletimer 10s linear infinite' }} />
             </svg>
-            <div style={{
-              display: 'flex', borderRadius: 8, overflow: 'hidden',
-              border: '1px solid var(--border)',
-            }}>
+            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
               {['tipo', 'canal'].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  style={{
-                    padding: '5px 14px', fontSize: 11, fontWeight: 600,
-                    border: 'none', cursor: 'pointer',
-                    textTransform: 'capitalize',
-                    transition: 'all 0.2s',
-                    background: tab === t ? 'var(--accent)' : 'transparent',
-                    color: tab === t ? '#fff' : 'var(--text-dim)',
-                  }}
-                >
+                <button key={t} onClick={() => setTab(t)} style={{
+                  padding: '5px 14px', fontSize: 11, fontWeight: 600,
+                  border: 'none', cursor: 'pointer', textTransform: 'capitalize',
+                  transition: 'all 0.2s',
+                  background: tab === t ? 'var(--accent)' : 'transparent',
+                  color: tab === t ? '#fff' : 'var(--text-dim)',
+                }}>
                   {t === 'tipo' ? 'Tipo' : 'Canal'}
                 </button>
               ))}
@@ -132,22 +134,26 @@ export default function GraficoBarrasTop({
         </div>
       )}
 
-      {/* Chart */}
       <div style={{ width: '100%', height: hasDual ? 200 : 180, padding: '6px 4px 0' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={enriched} barCategoryGap="38%" margin={{ top: 18, right: 4, left: -10, bottom: 0 }}>
+          <BarChart data={enriched} barCategoryGap="38%"
+            margin={{ top: 18, right: 4, left: -10, bottom: isCanal ? 6 : 0 }}>
             <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-            <XAxis dataKey="n" tick={{ fill: 'var(--text-dim)', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }}
-              axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }}
+            <XAxis
+              dataKey="n"
+              axisLine={false} tickLine={false}
+              tick={isCanal ? <LogoTick /> : { fill: '#ffffff', fontSize: 12, fontFamily: 'Plus Jakarta Sans', fontWeight: 600 }}
+              height={isCanal ? 30 : 20}
+            />
+            <YAxis
+              tick={{ fill: 'var(--text-dim)', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }}
               axisLine={false} tickLine={false} width={28} allowDecimals={false} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--hover)' }} />
             <Bar dataKey="v" radius={[5, 5, 0, 0]} opacity={0.92}>
               <LabelList dataKey="v" position="top"
                 style={{ fill: 'var(--text-main)', fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans' }} />
               {enriched.map((d, i) => (
-                <Cell key={i} fill={d.c}
-                  style={{ filter: `drop-shadow(0 0 4px ${d.c}55)` }} />
+                <Cell key={i} fill={d.c} style={{ filter: `drop-shadow(0 0 4px ${d.c}55)` }} />
               ))}
             </Bar>
           </BarChart>

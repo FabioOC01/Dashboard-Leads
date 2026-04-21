@@ -71,7 +71,7 @@ export function playVentaEfectiva() {
 export function playAlertaSLA() {
   try {
     const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/sla.wav');
-    audio.volume = 0.5;
+    audio.volume = 0.4;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) {
     console.warn('Audio no disponible:', e);
