@@ -6,10 +6,19 @@ const CANAL_COLORS = {
   Instagram: '#EC4899', Web: '#38BDF8', Tiktok: '#9CA3AF', Youtube: '#EF4444',
 };
 
+const TIPO_COLORS = {
+  requerimiento: '#6366f1',
+  soporte:       '#f59e0b',
+  academia:      '#10b981',
+  producto:      '#ec4899',
+  general:       '#38bdf8',
+};
+const TIPO_PALETTE = ['#6366f1','#f59e0b','#10b981','#ec4899','#38bdf8','#fb923c','#a78bfa'];
+
 const CANAL_ICONS = {
   store:     'https://comutelperu.com/correo-cm/Iconos/odoo.png?v=2',
   whatsapp:  'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
-  facebook:  'https://comutelperu.com/correo-cm/Iconos/facebook.png',
+  facebook:  'https://comutelperu.com/correo-cm/Iconos/facebook.png?v=2',
   instagram: 'https://comutelperu.com/correo-cm/Iconos/instagram.png',
   web:       'https://comutelperu.com/correo-cm/Logo/ISO.png',
   tiktok:    'https://comutelperu.com/correo-cm/Iconos/tiktok.png',
@@ -93,10 +102,12 @@ export default function GraficoBarrasTop({
     );
   }
 
-  const enriched = activeData.map(d => ({
+  const enriched = activeData.map((d, i) => ({
     n: d.name,
     v: d.value,
-    c: activeMode === 'canal' ? (CANAL_COLORS[d.name] || d.color || activeColor) : activeColor,
+    c: activeMode === 'canal'
+      ? (CANAL_COLORS[d.name] || d.color || activeColor)
+      : (TIPO_COLORS[d.name?.toLowerCase()] || TIPO_PALETTE[i % TIPO_PALETTE.length]),
   }));
 
   const isCanal = activeMode === 'canal';
@@ -142,7 +153,7 @@ export default function GraficoBarrasTop({
             <XAxis
               dataKey="n"
               axisLine={false} tickLine={false}
-              tick={isCanal ? <LogoTick /> : { fill: '#ffffff', fontSize: 12, fontFamily: 'Plus Jakarta Sans', fontWeight: 600 }}
+              tick={isCanal ? <LogoTick /> : { fill: 'var(--text-main)', fontSize: 12, fontFamily: 'Plus Jakarta Sans', fontWeight: 600 }}
               height={isCanal ? 30 : 20}
             />
             <YAxis

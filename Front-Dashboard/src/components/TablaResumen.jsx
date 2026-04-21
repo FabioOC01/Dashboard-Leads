@@ -2,12 +2,36 @@ import Semaforo from './Semaforo';
 import { useState, useEffect } from 'react';
 
 const ESTADO_CFG = {
-  nuevo:       { label: 'Nuevo',       bg: '#D6EAF8', color: '#1B4F72' },
-  en_atencion: { label: 'En atención', bg: '#FEF3C7', color: '#D97706' },
-  cotizado:    { label: 'Cotizado',    bg: '#FDEBD0', color: '#E67E22' },
-  derivado:          { label: 'Derivado',     bg: '#D1ECF1', color: '#0C7A8B' },
-  cotizado_tecnico:  { label: 'Cot. Técnico', bg: '#E0F2FE', color: '#0369A1' },
+  nuevo:              { label: 'Nuevo',          color: '#38bdf8' },
+  en_atencion:        { label: 'En atención',    color: '#a78bfa' },
+  cotizado:           { label: 'Cotizado',       color: '#f59e0b' },
+  derivado:           { label: 'Derivado',       color: '#06b6d4' },
+  cotizado_tecnico:   { label: 'Cot. Técnico',   color: '#14b8a6' },
+  venta_efectiva:     { label: 'Venta efectiva', color: '#10b981' },
+  negociacion_futuro: { label: 'Neg. a futuro',  color: '#fb923c' },
+  no_efectiva:        { label: 'No efectiva',    color: '#f43f5e' },
 };
+
+function StatePill({ estado }) {
+  const cfg = ESTADO_CFG[estado] || { label: estado, color: '#6b7280' };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '3px 9px', borderRadius: 6,
+      background: cfg.color + '1f',
+      border: `1px solid ${cfg.color}55`,
+      color: cfg.color, fontSize: 11, fontWeight: 700,
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: cfg.color, boxShadow: `0 0 4px ${cfg.color}`,
+        flexShrink: 0,
+      }} />
+      {cfg.label}
+    </span>
+  );
+}
 
 function isHorarioHabil() {
   const t = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
@@ -96,7 +120,6 @@ export default function TablaResumen({ leads, fetchedAt = Date.now() }) {
             </tr>
           )}
           {leads.map((lead, i) => {
-            const cfg = ESTADO_CFG[lead.estado];
             return (
               <tr key={lead.id} style={{
                 background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-main)',
@@ -104,16 +127,7 @@ export default function TablaResumen({ leads, fetchedAt = Date.now() }) {
               }}>
                 <td style={{ padding: '4px 8px', fontWeight: 500 }}>{lead.vendedor_nombre || '—'}</td>
                 <td style={{ padding: '4px 8px' }}>
-                  <span style={{
-                    background: cfg?.bg ?? '#eee',
-                    color: cfg?.color ?? '#333',
-                    padding: '1px 6px', borderRadius: 10,
-                    fontSize: 10, fontWeight: 700,
-                    display: 'inline-block', maxWidth: '100%',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {cfg?.label ?? lead.estado ?? '?'}
-                  </span>
+                  <StatePill estado={lead.estado} />
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} tipo="1ra resp." />
