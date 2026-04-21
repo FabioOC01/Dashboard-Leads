@@ -411,17 +411,29 @@ function isHorarioHabil() {
   return t >= 9 * 60 + 30 && t < 18 * 60 + 30;
 }
 
+// Minutos hábiles reales entre fromTs y ahora.
+// Si fromTs fue antes de las 9:30, el conteo empieza desde las 9:30, no desde fromTs.
+function businessMinutesSince(fromTs) {
+  if (!isHorarioHabil()) return 0;
+  const toLima = t => new Date(new Date(t).toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const fromLima = toLima(fromTs);
+  const nowLima  = toLima(Date.now());
+  const BIZ_START = 9 * 60 + 30;
+  const fromMin = fromLima.getHours() * 60 + fromLima.getMinutes() + fromLima.getSeconds() / 60;
+  const nowMin  = nowLima.getHours()  * 60 + nowLima.getMinutes()  + nowLima.getSeconds()  / 60;
+  return Math.max(0, nowMin - Math.max(fromMin, BIZ_START));
+}
+
 function getMinutosPrimeraRespuesta(lead, fetchedAt) {
   if (lead.ts_primera_respuesta) {
     if (lead.min_primera_respuesta != null) return lead.min_primera_respuesta;
     return null;
   }
   if (lead._socketAt != null) {
-    return isHorarioHabil() ? (Date.now() - lead._socketAt) / 60000 : 0;
+    return businessMinutesSince(lead._socketAt);
   }
   if (lead.min_esperando_respuesta != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return lead.min_esperando_respuesta + elapsed;
+    return lead.min_esperando_respuesta + businessMinutesSince(fetchedAt);
   }
   return null;
 }
@@ -437,8 +449,7 @@ function getMinutosCotizacion(lead, fetchedAt) {
     return isHorarioHabil() ? (Date.now() - lead._cotizacionAt) / 60000 : parseFloat(lead.min_esperando_cotizacion) || 0;
   }
   if (lead.min_esperando_cotizacion != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return parseFloat(lead.min_esperando_cotizacion) + elapsed;
+    return parseFloat(lead.min_esperando_cotizacion) + businessMinutesSince(fetchedAt);
   }
   return null;
 }
@@ -455,8 +466,7 @@ function getMinutosSoporte(lead, fetchedAt) {
     return isHorarioHabil() ? (Date.now() - lead._derivadoAt) / 60000 : parseFloat(lead.min_esperando_soporte) || 0;
   }
   if (lead.min_esperando_soporte != null) {
-    const elapsed = isHorarioHabil() ? (Date.now() - fetchedAt) / 60000 : 0;
-    return parseFloat(lead.min_esperando_soporte) + elapsed;
+    return parseFloat(lead.min_esperando_soporte) + businessMinutesSince(fetchedAt);
   }
   return null;
 }
