@@ -861,19 +861,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             </button>
 
             {/* Login / Exportar estilo */}
-            <button
-              onClick={isAdmin ? onLogout : onAdminClick}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
-                background: 'var(--bg-card)', color: 'var(--text-dim)',
-                cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              }}
-            >
-              <span style={{ fontSize: 12 }}>{isAdmin ? '🔓' : '🔒'}</span>
-              {isAdmin ? 'Desconectar' : 'Login Admin'}
-            </button>
-
+            
             {/* En vivo / Nuevo Lead Verde */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700,
@@ -888,12 +876,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               {!conectado ? 'Desconectado' : enHorarioHabil ? 'En Vivo' : 'Fuera de horario'}
             </div>
 
-            {/* Notificaciones */}
-            <button style={{
-              padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-              background: 'var(--bg-card)', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 15
-            }}>
-              🔔
+            <button
+              onClick={isAdmin ? onLogout : onAdminClick}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
+                background: 'var(--bg-card)', color: 'var(--text-dim)',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <span style={{ fontSize: 12 }}>{isAdmin ? '🔓' : '🔒'}</span>
+              {isAdmin ? 'Desconectar' : ''}
             </button>
 
             {/* Fullscreen con color del Sidebar */}
