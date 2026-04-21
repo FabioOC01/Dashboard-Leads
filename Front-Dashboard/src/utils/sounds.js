@@ -1,4 +1,4 @@
-// Web Audio API - generador de tonos sin archivos externos
+// Web Audio API 
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let ctx = null;
 
@@ -7,7 +7,6 @@ function getCtx() {
   return ctx;
 }
 
-// Sonido de nuevo lead dinámico por asesor (o fallback a doble beep)
 export function playNuevoLead(vendedorNombre = '') {
   try {
     const SoundsMap = {
@@ -23,16 +22,13 @@ export function playNuevoLead(vendedorNombre = '') {
     else if (asName.includes('sthefania') || asName.includes('stefania')) urlToPlay = SoundsMap['sthefania'];
     else if (asName.includes('estefany') || asName.includes('stephany')) urlToPlay = SoundsMap['estefany'];
 
-    // Si tiene un MP3 asignado, lo toca
     if (urlToPlay) {
       const audio = new Audio(urlToPlay);
-      // Bajamos el volumen base solo para el sonido agudo de Sthefania
-      audio.volume = (asName.includes('sthefania') || asName.includes('stefania')) ? 0.2 : 0.5;
+      audio.volume = (asName.includes('sthefania') || asName.includes('stefania')) ? 0.1 : 0.5;
       audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
       return;
     }
 
-    // FALLBACK por defecto: Sonido de nuevo lead (tono agradable, doble beep)
     const c = getCtx();
     [0, 0.15].forEach(delay => {
       const osc = c.createOscillator();
@@ -71,7 +67,7 @@ export function playVentaEfectiva() {
 export function playAlertaSLA() {
   try {
     const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/sla.wav');
-    audio.volume = 0.4;
+    audio.volume = 0.3;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) {
     console.warn('Audio no disponible:', e);
@@ -82,7 +78,7 @@ export function playAlertaSLA() {
 export function playInicioJornada() {
   try {
     const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/inicio.wav');
-    audio.volume = 0.5;
+    audio.volume = 0.6;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) { console.warn('Audio inicio jornada no disponible:', e); }
 }
