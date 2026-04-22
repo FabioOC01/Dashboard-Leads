@@ -7,6 +7,11 @@ module.exports = (io) => {
             socket.broadcast.emit('test:audio', { tipo });
         });
 
+        socket.on('admin:force_reload', () => {
+            console.log('[SOCKET] Force reload broadcast');
+            io.emit('force:reload');
+        });
+
         socket.on('disconnect', () => {
             console.log(`[SOCKET] Cliente desconectado: ${socket.id}`);
         });
