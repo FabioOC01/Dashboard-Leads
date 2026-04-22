@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getLeads, getMetricas, getMetricasTecnico, getTecnicos, getVendedores } from '../api/leads';
-import { useSocket, emitTestAudio } from '../hooks/useSocket';
+import { useSocket, emitTestAudio, emitForceReload } from '../hooks/useSocket';
 import TarjetaMetrica from '../components/TarjetaMetrica';
 import TablaLeads from '../components/TablaLeads';
 import TablaResumen from '../components/TablaResumen';
@@ -795,6 +795,22 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             {/* Administrar Vendedores y Probar Alertas (Solo Admin) */}
             {isAdmin && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    if (confirm('¿Forzar recarga de dashboard en todos los clientes conectados?')) {
+                      emitForceReload();
+                    }
+                  }}
+                  title="Forzar Ctrl+Shift+R en todos los clientes conectados"
+                  style={{
+                    padding: '6px 10px', borderRadius: 6, border: '1px solid #f59e0b55',
+                    background: '#f59e0b18', color: '#f59e0b',
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  🔄 Recargar Todos
+                </button>
                 <div ref={testMenuRef} style={{ position: 'relative' }}>
                   <button
                     onClick={() => setShowTestMenu(v => !v)}
