@@ -1,5 +1,24 @@
 const pool = require('../db/pool');
 
+const CRM_WEBHOOK_URL   = process.env.CRM_WEBHOOK_URL   || 'http://localhost:3001/webhook/cotizacion-enviada';
+const CRM_WEBHOOK_TOKEN = process.env.CRM_WEBHOOK_TOKEN || 'Comutel.2026.Comutel.2025';
+
+function forwardCotizacionToCRM(body) {
+    fetch(CRM_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-webhook-token': CRM_WEBHOOK_TOKEN,
+        },
+        body: JSON.stringify(body),
+    })
+    .then(async r => {
+        const text = await r.text();
+        console.log(`[CRM forward] status=${r.status} body=${text}`);
+    })
+    .catch(err => console.error('[CRM forward] error:', err.message));
+}
+
 exports.leadCreado = async (req, res) => {
     const {
         contact_id, nombre, celular, canal,
@@ -133,6 +152,10 @@ exports.cotizacionEnviada = async (req, res) => {
 
         req.io.emit('lead:actualizado', lead);
         console.log(`[WEBHOOK] Cotización enviada: ${lead.id} — ${lead.nombre}`);
+
+        // Reenviar al CRM (fire-and-forget) para crear cliente + actividad Cotización
+        forwardCotizacionToCRM(req.body);
+
         res.json({ ok: true, lead });
 
     } catch (err) {
