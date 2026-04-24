@@ -118,6 +118,9 @@ exports.vendedorRespondio = async (req, res) => {
 exports.cotizacionEnviada = async (req, res) => {
     const { lead_id, contact_id, vendedor_id, asesor_asignado, observaciones } = req.body;
 
+    // Reenvío siempre al CRM (independiente de si el lead existe en Retail)
+    forwardCotizacionToCRM(req.body);
+
     try {
         let v_id = vendedor_id;
         if (!v_id && asesor_asignado) {
@@ -152,10 +155,6 @@ exports.cotizacionEnviada = async (req, res) => {
 
         req.io.emit('lead:actualizado', lead);
         console.log(`[WEBHOOK] Cotización enviada: ${lead.id} — ${lead.nombre}`);
-
-        // Reenviar al CRM (fire-and-forget) para crear cliente + actividad Cotización
-        forwardCotizacionToCRM(req.body);
-
         res.json({ ok: true, lead });
 
     } catch (err) {
