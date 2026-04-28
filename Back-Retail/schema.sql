@@ -167,7 +167,7 @@ $$ LANGUAGE plpgsql;
 -- =============================================
 CREATE TABLE leads (
   id                        SERIAL PRIMARY KEY,
-  sendpulse_contact_id      VARCHAR(100),
+  sendpulse_contact_id      VARCHAR(100) UNIQUE,
 
   -- Datos del cliente
   nombre                    VARCHAR(150),

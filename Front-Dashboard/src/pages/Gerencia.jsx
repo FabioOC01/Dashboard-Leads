@@ -699,8 +699,9 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         {/* Links externos */}
         <div style={{ borderTop: '1px solid #2d3d52', padding: collapsed ? '8px 0' : '8px 12px' }}>
           {[
-            { href: `http://${window.location.hostname}:5174`, label: 'Vantio Planner', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
+            { href: `http://192.168.1.51:5175`, label: 'Vantio Planner', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
             { href: 'http://192.168.1.50', label: 'GLPI CM', icon: 'https://comutelperu.com/correo-cm/Iconos/10156352.png' },
+            { href: 'https://store.comutelperu.com/web#cids=1&action=menu', label: 'Odoo', icon: 'https://comutelperu.com/correo-cm/Iconos/odoo.png' },
           ].map(({ href, label, icon }) => (
             <a key={href} href={href} target="_blank" rel="noreferrer"
               title={collapsed ? label : undefined}
