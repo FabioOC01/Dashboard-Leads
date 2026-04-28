@@ -25,6 +25,7 @@ const VENDOR_PHOTOS = {
   'estefany':  'https://comutelperu.com/correo-cm/Fotos/ESTEFANY.png',
   'sthefania': 'https://comutelperu.com/correo-cm/Fotos/STHEFANIA.png',
   'christian': 'https://comutelperu.com/correo-cm/Fotos/CHRISTIAN-PERFIL.jpg.jpeg',
+  'maria':     'https://comutelperu.com/correo-cm/Fotos/MAFER-PERFIL.jpg.jpeg',
 };
 
 export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
