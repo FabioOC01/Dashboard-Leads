@@ -323,3 +323,112 @@ exports.leadCerrado = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+// ── Sync desde Google Sheet (one-way, idempotente, upsert por sendpulse_contact_id) ──
+const VENTA_TO_ESTADO = {
+    'Efectiva':            { estado: 'venta_efectiva',     resultado: 'ganado',  cierre: true },
+    'Negociación futura':  { estado: 'negociacion_futuro', resultado: 'futuro',  cierre: true },
+    'Negociacion futura':  { estado: 'negociacion_futuro', resultado: 'futuro',  cierre: true },
+    'No efectiva':         { estado: 'no_efectiva',        resultado: 'perdido', cierre: true },
+    'En Atención':         { estado: 'en_atencion',        resultado: null,      cierre: false },
+    'En Atencion':         { estado: 'en_atencion',        resultado: null,      cierre: false },
+    'Cotizado':            { estado: 'cotizado',           resultado: null,      cierre: false, cotizado: true },
+};
+
+async function resolverVendedorId(nombre) {
+    if (!nombre) return null;
+    const { rows } = await pool.query(`SELECT id FROM vendedores WHERE nombre ILIKE $1 LIMIT 1`, [`%${nombre}%`]);
+    if (rows.length > 0) return rows[0].id;
+    const { rows: nuevo } = await pool.query(`INSERT INTO vendedores (nombre) VALUES ($1) RETURNING id`, [nombre]);
+    return nuevo[0].id;
+}
+
+exports.sheetSync = async (req, res) => {
+    const leads = Array.isArray(req.body?.leads) ? req.body.leads : [];
+    if (!leads.length) return res.json({ ok: true, processed: 0, inserted: 0, updated: 0, errors: [] });
+
+    let inserted = 0, updated = 0, unchanged = 0;
+    const errors = [];
+
+    for (const item of leads) {
+        try {
+            const {
+                contact_id, nombre, celular, canal, campana,
+                requerimiento, tipo, asesor_asignado, observaciones, venta
+            } = item;
+
+            if (!contact_id) {
+                errors.push({ contact_id: null, msg: 'contact_id requerido' });
+                continue;
+            }
+
+            const map = VENTA_TO_ESTADO[venta?.toString().trim()] || null;
+            const estado    = map?.estado    || 'nuevo';
+            const resultado = map?.resultado || null;
+            const ts_cierre = map?.cierre    ? 'NOW()' : 'NULL';
+            const ts_cotizacion_enviada = map?.cotizado ? 'NOW()' : 'NULL';
+
+            const vendedor_id = await resolverVendedorId(asesor_asignado);
+
+            const { rows } = await pool.query(
+                `INSERT INTO leads
+                   (sendpulse_contact_id, nombre, celular, canal, campana,
+                    requerimiento, tipo, notas, observaciones, vendedor_id,
+                    estado, resultado, ts_lead_creado, ts_efectivo,
+                    ts_cierre, ts_cotizacion_enviada)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+                         NOW(), siguiente_momento_habil(NOW()::timestamp),
+                         ${ts_cierre}, ${ts_cotizacion_enviada})
+                 ON CONFLICT (sendpulse_contact_id) DO UPDATE SET
+                   nombre        = COALESCE(EXCLUDED.nombre, leads.nombre),
+                   celular       = COALESCE(EXCLUDED.celular, leads.celular),
+                   canal         = COALESCE(EXCLUDED.canal, leads.canal),
+                   campana       = COALESCE(EXCLUDED.campana, leads.campana),
+                   requerimiento = COALESCE(EXCLUDED.requerimiento, leads.requerimiento),
+                   tipo          = COALESCE(EXCLUDED.tipo, leads.tipo),
+                   observaciones = COALESCE(EXCLUDED.observaciones, leads.observaciones),
+                   vendedor_id   = COALESCE(EXCLUDED.vendedor_id, leads.vendedor_id),
+                   estado        = EXCLUDED.estado,
+                   resultado     = COALESCE(EXCLUDED.resultado, leads.resultado),
+                   ts_cierre              = COALESCE(leads.ts_cierre, EXCLUDED.ts_cierre),
+                   ts_cotizacion_enviada  = COALESCE(leads.ts_cotizacion_enviada, EXCLUDED.ts_cotizacion_enviada)
+                 RETURNING *,
+                   (xmax = 0) AS inserted_flag,
+                   (xmax <> 0) AS updated_flag`,
+                [contact_id, nombre, celular ? String(celular) : null, canal, campana,
+                 requerimiento, tipo, observaciones, observaciones, vendedor_id,
+                 estado, resultado]
+            );
+
+            const lead = rows[0];
+            const wasInserted = lead.inserted_flag === true;
+
+            if (wasInserted) {
+                inserted++;
+                await pool.query(
+                    `INSERT INTO eventos_lead (lead_id, vendedor_id, tipo, metadata)
+                     VALUES ($1,$2,'lead_creado',$3)`,
+                    [lead.id, vendedor_id, JSON.stringify({ origen: 'sheet_sync' })]
+                );
+                lead.vendedor_nombre = asesor_asignado;
+                req.io.emit('lead:nuevo', lead);
+                console.log(`[SHEET-SYNC] insert: ${lead.id} — ${lead.nombre} (${estado})`);
+            } else {
+                updated++;
+                await pool.query(
+                    `INSERT INTO eventos_lead (lead_id, vendedor_id, tipo, metadata)
+                     VALUES ($1,$2,'sheet_sync',$3)`,
+                    [lead.id, vendedor_id, JSON.stringify({ estado, resultado, venta })]
+                );
+                lead.vendedor_nombre = asesor_asignado;
+                req.io.emit('lead:actualizado', lead);
+                console.log(`[SHEET-SYNC] update: ${lead.id} — ${lead.nombre} (${estado})`);
+            }
+        } catch (err) {
+            console.error('[SHEET-SYNC] Error item:', item?.contact_id, err.message);
+            errors.push({ contact_id: item?.contact_id || null, msg: err.message });
+        }
+    }
+
+    res.json({ ok: true, processed: leads.length, inserted, updated, unchanged, errors });
+};

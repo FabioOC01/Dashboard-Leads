@@ -8,5 +8,6 @@ router.post('/cotizacion-enviada', verificar, ctrl.cotizacionEnviada);
 router.post('/lead-derivado', verificar, ctrl.leadDerivado);
 router.post('/lead-cerrado', verificar, ctrl.leadCerrado);
 router.post('/cotizacion-tecnico', verificar, ctrl.cotizacionTecnico);
+router.post('/sheet-sync', verificar, ctrl.sheetSync);
 
 module.exports = router;
