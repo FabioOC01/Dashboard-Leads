@@ -54,7 +54,7 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
       return; 
     }
 
-    if (!sellers[v]) sellers[v] = { aTiempo: 0, atrasados: 0, total: 0 };
+    if (!sellers[v]) sellers[v] = { aTiempo: 0, enRiesgo: 0, atrasados: 0, total: 0 };
 
     let wTime;
     if (l.ts_primera_respuesta) {
@@ -67,7 +67,8 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
       wTime = 0;
     }
 
-    if (wTime > 15) sellers[v].atrasados++;
+    if (wTime > 20) sellers[v].atrasados++;
+    else if (wTime > 15) sellers[v].enRiesgo++;
     else sellers[v].aTiempo++;
     sellers[v].total++;
   });
@@ -76,7 +77,7 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
     .map(([nombre, s]) => ({
       nombre,
       ...s,
-      pct: s.total > 0 ? Math.round((s.aTiempo / s.total) * 100) : 0,
+      pct: s.total > 0 ? Math.round(((s.aTiempo + s.enRiesgo) / s.total) * 100) : 0,
     }))
     .sort((a, b) => b.pct - a.pct);
 
@@ -91,11 +92,12 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 2px 2px' }}>
       {sorted.map((s, i) => {
-        const color = s.pct >= 70 ? '#10b981' : s.pct > 50 ? '#f59e0b' : '#f43f5e';
+        const color = s.pct >= 71 ? '#10b981' : s.pct > 55 ? '#f59e0b' : '#f43f5e';
         const initials = s.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
         const photo = VENDOR_PHOTOS[s.nombre.split(' ')[0].toLowerCase()] || null;
         const firstName = s.nombre.split(' ')[0];
         const okW  = s.total > 0 ? (s.aTiempo / s.total) * 100 : 0;
+        const riskW = s.total > 0 ? (s.enRiesgo / s.total) * 100 : 0;
         const lateW = s.total > 0 ? (s.atrasados / s.total) * 100 : 0;
 
         return (
@@ -149,16 +151,26 @@ export default function DashboardTecnicos({ leads, fetchedAt, vendedores }) {
                 }} />
                 <div style={{
                   height: '100%',
+                  width: animado ? `${riskW}%` : '0%',
+                  background: 'linear-gradient(90deg, #f59e0baa 0%, #f59e0b 25%, #f59e0baa 50%, #f59e0b 75%, #f59e0baa 100%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'waveBg 2.5s linear infinite',
+                  boxShadow: '0 0 4px rgba(245,158,11,0.45)',
+                  transition: `width 0.7s cubic-bezier(.25,1,.5,1) ${i * 70 + 50}ms`,
+                }} />
+                <div style={{
+                  height: '100%',
                   width: animado ? `${lateW}%` : '0%',
                   background: 'linear-gradient(90deg, #f43f5eaa 0%, #f43f5e 25%, #f43f5eaa 50%, #f43f5e 75%, #f43f5eaa 100%)',
                   backgroundSize: '200% 100%',
                   animation: 'waveBg 2.5s linear infinite',
-                  transition: `width 0.7s cubic-bezier(.25,1,.5,1) ${i * 70 + 50}ms`,
+                  transition: `width 0.7s cubic-bezier(.25,1,.5,1) ${i * 70 + 100}ms`,
                 }} />
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <span style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>✓ {s.aTiempo}</span>
+                <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700 }}>⚠ {s.enRiesgo}</span>
                 <span style={{ fontSize: 9, color: '#f43f5e', fontWeight: 700 }}>✗ {s.atrasados}</span>
               </div>
             </div>

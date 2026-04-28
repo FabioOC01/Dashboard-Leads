@@ -1,8 +1,8 @@
-export default function Semaforo({ minutos, meta, tipo }) {
+export default function Semaforo({ minutos, meta, tipo, amarilloHasta }) {
   const getColor = () => {
     if (minutos === null || minutos === undefined) return null;
     if (minutos <= meta) return 'verde';
-    if (minutos <= meta * 2) return 'amarillo';
+    if (minutos <= (amarilloHasta ?? meta * 2)) return 'amarillo';
     return 'rojo';
   };
 

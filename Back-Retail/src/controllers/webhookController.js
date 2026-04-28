@@ -363,26 +363,34 @@ exports.sheetSync = async (req, res) => {
                 requerimiento, tipo, asesor_asignado, observaciones, venta
             } = item;
 
-            // Si viene vacío o es uno generado por el sheet (sheet_*), intentar match por celular
-            // para vincular con el lead real que ya creó SendPulse.
+            // Resolver primero por contact_id o celular para evitar duplicados desde Sheets.
             let contact_id = contact_id_input;
-            const esSheetGenerado = !contact_id || String(contact_id).startsWith('sheet_');
+            const celNormRaw = normalizarCelular(celular);
+            const celNorm = celNormRaw && celNormRaw.length >= 7 ? celNormRaw : null;
 
-            if (esSheetGenerado && celular) {
-                const celNorm = normalizarCelular(celular);
-                if (celNorm) {
-                    const { rows: existentes } = await pool.query(
-                        `SELECT sendpulse_contact_id
-                         FROM leads
-                         WHERE regexp_replace(celular, '\\D', '', 'g') = $1
-                           AND sendpulse_contact_id IS NOT NULL
-                         ORDER BY creado_en DESC
-                         LIMIT 1`,
-                        [celNorm]
-                    );
-                    if (existentes.length > 0) {
-                        contact_id = existentes[0].sendpulse_contact_id;
-                    }
+            if (contact_id || celNorm) {
+                const { rows: existentes } = await pool.query(
+                    `SELECT sendpulse_contact_id
+                     FROM leads
+                     WHERE sendpulse_contact_id IS NOT NULL
+                       AND (
+                         ($1::text IS NOT NULL AND sendpulse_contact_id = $1)
+                         OR (
+                           $2::text IS NOT NULL
+                           AND (
+                             regexp_replace(celular, '\\D', '', 'g') = $2
+                             OR right(regexp_replace(celular, '\\D', '', 'g'), 9) = right($2, 9)
+                           )
+                         )
+                       )
+                     ORDER BY
+                       CASE WHEN $1::text IS NOT NULL AND sendpulse_contact_id = $1 THEN 0 ELSE 1 END,
+                       creado_en DESC
+                     LIMIT 1`,
+                    [contact_id || null, celNorm || null]
+                );
+                if (existentes.length > 0) {
+                    contact_id = existentes[0].sendpulse_contact_id;
                 }
             }
 

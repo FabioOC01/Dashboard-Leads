@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function GraficoSLA({ atendidos, total }) {
+export default function GraficoSLA({ atendidos, total, enRiesgo = 0 }) {
   const pct = total > 0 ? Math.round((atendidos / total) * 100) : 0;
   const [displayPct, setDisplayPct] = useState(0);
   const [arcPct, setArcPct]         = useState(0);
@@ -45,7 +45,7 @@ export default function GraficoSLA({ atendidos, total }) {
   const tipAngle = toA(arcPct);
   const tipPt    = polar(tipAngle);
 
-  const colorRaw = pct >= 70 ? '#10b981' : pct > 50 ? '#f59e0b' : '#f43f5e';
+  const colorRaw = pct >= 71 ? '#10b981' : pct > 55 ? '#f59e0b' : '#f43f5e';
 
   return (
     <>
@@ -130,6 +130,7 @@ export default function GraficoSLA({ atendidos, total }) {
             <tspan fill="var(--text-dim)" opacity="0.5" fontSize="13"> / </tspan>
             <tspan fill="var(--text-main)" opacity="0.8" fontWeight="600" fontSize="13">{total}</tspan>
             <tspan fill="var(--text-dim)" opacity="0.7" fontSize="11"> leads</tspan>
+          
           </text>
         </svg>
       </div>

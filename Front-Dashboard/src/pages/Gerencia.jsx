@@ -421,6 +421,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const leadsAbiertos = leadsFiltrados.filter(l => !ESTADOS_CERRADOS.includes(l.estado));
 
   let aTiempo = 0;
+  let enRiesgo = 0;
   let atrasados = 0;
 
   leadsFiltrados.forEach(l => {
@@ -435,8 +436,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       t = 0;
     }
 
-    if (t <= 15) aTiempo++; else atrasados++;
+    if (t > 20) atrasados++;
+    else if (t > 15) enRiesgo++;
+    else aTiempo++;
   });
+  const slaCumplidos = aTiempo + enRiesgo;
   const total = leadsFiltrados.length;
 
   // Chart Data: Motivos (Tipos)
@@ -1037,7 +1041,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA Atendido (%)</div>
                 <div style={{ width: '100%', height: 130 }}>
-                  <GraficoSLA key={refreshKey} atendidos={aTiempo} total={total} />
+                  <GraficoSLA key={refreshKey} atendidos={slaCumplidos} enRiesgo={enRiesgo} total={total} />
                 </div>
               </div>
               <div className="card card-shimmer" style={{ padding: '14px 18px' }}>

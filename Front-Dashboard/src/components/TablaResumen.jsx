@@ -130,7 +130,7 @@ export default function TablaResumen({ leads, fetchedAt = Date.now() }) {
                   <StatePill estado={lead.estado} />
                 </td>
                 <td style={{ padding: '4px 8px' }}>
-                  <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} tipo="1ra resp." />
+                  <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} amarilloHasta={20} tipo="1ra resp." />
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <Semaforo minutos={getMinutosCotizacion(lead, fetchedAt)} meta={240} tipo="Cotización" />

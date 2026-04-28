@@ -542,7 +542,7 @@ export default function TablaLeads({ leads, fetchedAt = Date.now(), tecnicos = [
                 <BadgeSelect lead={lead} isAdmin={isAdmin} onActualizar={onActualizar} />
               </td>
               <td style={tdStyle}>
-                <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} tipo="1ra resp." />
+                <Semaforo minutos={getMinutosPrimeraRespuesta(lead, fetchedAt)} meta={15} amarilloHasta={20} tipo="1ra resp." />
               </td>
               <td style={tdStyle}>
                 <Semaforo minutos={getMinutosCotizacion(lead, fetchedAt)} meta={240} tipo="Cotización" />
