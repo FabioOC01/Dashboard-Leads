@@ -343,23 +343,52 @@ async function resolverVendedorId(nombre) {
     return nuevo[0].id;
 }
 
+function normalizarCelular(c) {
+    if (!c) return null;
+    return String(c).replace(/\D/g, ''); // solo dígitos
+}
+
 exports.sheetSync = async (req, res) => {
     const leads = Array.isArray(req.body?.leads) ? req.body.leads : [];
-    if (!leads.length) return res.json({ ok: true, processed: 0, inserted: 0, updated: 0, errors: [] });
+    if (!leads.length) return res.json({ ok: true, processed: 0, inserted: 0, updated: 0, errors: [], results: [] });
 
     let inserted = 0, updated = 0, unchanged = 0;
     const errors = [];
+    const results = []; // [{ row_contact_id_input, contact_id_resolved, celular }]
 
     for (const item of leads) {
         try {
             const {
-                contact_id, nombre, celular, canal, campana,
+                contact_id: contact_id_input, nombre, celular, canal, campana,
                 requerimiento, tipo, asesor_asignado, observaciones, venta
             } = item;
 
+            // Si viene vacío o es uno generado por el sheet (sheet_*), intentar match por celular
+            // para vincular con el lead real que ya creó SendPulse.
+            let contact_id = contact_id_input;
+            const esSheetGenerado = !contact_id || String(contact_id).startsWith('sheet_');
+
+            if (esSheetGenerado && celular) {
+                const celNorm = normalizarCelular(celular);
+                if (celNorm) {
+                    const { rows: existentes } = await pool.query(
+                        `SELECT sendpulse_contact_id
+                         FROM leads
+                         WHERE regexp_replace(celular, '\\D', '', 'g') = $1
+                           AND sendpulse_contact_id IS NOT NULL
+                         ORDER BY creado_en DESC
+                         LIMIT 1`,
+                        [celNorm]
+                    );
+                    if (existentes.length > 0) {
+                        contact_id = existentes[0].sendpulse_contact_id;
+                    }
+                }
+            }
+
+            // Si tras buscar por celular sigue sin haber contact_id, generamos uno
             if (!contact_id) {
-                errors.push({ contact_id: null, msg: 'contact_id requerido' });
-                continue;
+                contact_id = `sheet_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
             }
 
             const map = VENTA_TO_ESTADO[venta?.toString().trim()] || null;
@@ -424,11 +453,18 @@ exports.sheetSync = async (req, res) => {
                 req.io.emit('lead:actualizado', lead);
                 console.log(`[SHEET-SYNC] update: ${lead.id} — ${lead.nombre} (${estado})`);
             }
+
+            results.push({
+                input_contact_id:    contact_id_input || null,
+                contact_id:          contact_id,
+                celular:             celular || null,
+                changed:             contact_id_input !== contact_id,
+            });
         } catch (err) {
             console.error('[SHEET-SYNC] Error item:', item?.contact_id, err.message);
             errors.push({ contact_id: item?.contact_id || null, msg: err.message });
         }
     }
 
-    res.json({ ok: true, processed: leads.length, inserted, updated, unchanged, errors });
+    res.json({ ok: true, processed: leads.length, inserted, updated, unchanged, errors, results });
 };
