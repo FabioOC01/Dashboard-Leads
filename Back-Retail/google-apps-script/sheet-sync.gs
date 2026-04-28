@@ -97,12 +97,17 @@ function syncHoja_(sheet) {
     const hashUpdates = [];
     const idUpdates   = [];
 
+    const rowByContactId = {}; // map para reconciliar la respuesta del backend
+
     data.forEach((row, idx) => {
         if (!row[COL.CELULAR] && !row[COL.NOMBRE]) return;
 
+        // Importante: si la columna CONTACT_ID está vacía, NO generamos uno aquí.
+        // El backend intentará matchear por celular contra leads existentes de SendPulse
+        // y devolverá el contact_id real. Solo generamos un placeholder si tampoco
+        // hay celular para que el backend pueda procesarlo.
         let contactId = row[COL.CONTACT_ID];
-        if (!contactId) {
-            // Prefijo con nombre de hoja para evitar colisiones entre meses
+        if (!contactId && !row[COL.CELULAR]) {
             const slug = nombreHoja.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             contactId = `sheet_${slug}_${Date.now()}_${idx + 2}`;
             idUpdates.push({ rowIdx: idx + 2, contactId });
@@ -110,7 +115,7 @@ function syncHoja_(sheet) {
         }
 
         const payload = {
-            contact_id:       String(contactId),
+            contact_id:       contactId ? String(contactId) : '',
             fecha:            row[COL.FECHA] instanceof Date
                                 ? row[COL.FECHA].toISOString()
                                 : row[COL.FECHA],
@@ -129,6 +134,10 @@ function syncHoja_(sheet) {
         if (hash !== row[COL.HASH]) {
             toSend.push(payload);
             hashUpdates.push({ rowIdx: idx + 2, hash });
+            // Tracking para reconciliar respuesta: usamos celular como llave secundaria
+            const cel = row[COL.CELULAR] ? String(row[COL.CELULAR]) : null;
+            const key = (payload.contact_id || '') + '|' + (cel || '');
+            rowByContactId[key] = idx + 2;
         }
     });
 
@@ -156,6 +165,19 @@ function syncHoja_(sheet) {
 
     const body = JSON.parse(resp.getContentText());
     Logger.log(`[sheet-sync] "${nombreHoja}" OK processed=${body.processed} inserted=${body.inserted} updated=${body.updated} errors=${(body.errors || []).length}`);
+
+    // Escribir de vuelta el contact_id resuelto por el backend (cuando matchó por celular
+    // o cuando generó uno nuevo). Esto permite que las próximas corridas detecten el lead
+    // por su sendpulse_contact_id real y eviten duplicados.
+    const resultados = body.results || [];
+    resultados.forEach(r => {
+        if (!r.changed && r.input_contact_id) return;
+        const key = (r.input_contact_id || '') + '|' + (r.celular || '');
+        const rowIdx = rowByContactId[key];
+        if (rowIdx) {
+            sheet.getRange(rowIdx, COL.CONTACT_ID + 1).setValue(r.contact_id);
+        }
+    });
 
     hashUpdates.forEach(u => {
         sheet.getRange(u.rowIdx, COL.HASH + 1).setValue(u.hash);
