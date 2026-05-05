@@ -68,6 +68,7 @@ const FILTROS_FECHA = [
   { value: 'dia', label: 'Hoy' },
   { value: 'semana', label: 'Esta semana' },
   { value: 'mes', label: 'Este mes' },
+  { value: 'mes_pasado', label: 'Mes pasado' },
   { value: 'todos', label: 'Histórico' },
 ];
 
@@ -129,10 +130,12 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   const cargarDatos = useCallback(async (silent = false) => {
     const now = new Date();
+    const primerDiaMesPasado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const desde = {
       dia: now.toISOString().split('T')[0],
       semana: new Date(now - 7 * 864e5).toISOString().split('T')[0],
       mes: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      mes_pasado: `${primerDiaMesPasado.getFullYear()}-${String(primerDiaMesPasado.getMonth() + 1).padStart(2, '0')}-01`,
       todos: null,
     }[filtroFecha] ?? null;
 
@@ -412,6 +415,10 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       return d >= minDate;
     }
     if (filtroFecha === 'mes') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    if (filtroFecha === 'mes_pasado') {
+      const primerDiaMesPasado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getMonth() === primerDiaMesPasado.getMonth() && d.getFullYear() === primerDiaMesPasado.getFullYear();
+    }
     return true;
   });
 

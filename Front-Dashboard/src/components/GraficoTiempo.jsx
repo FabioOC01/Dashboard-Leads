@@ -31,7 +31,7 @@ export default function GraficoTiempo({ leads, filtroFecha }) {
     let key;
     if (filtroFecha === 'dia') {
       key = d.getHours().toString().padStart(2, '0') + ':00';
-    } else if (filtroFecha === 'semana' || filtroFecha === 'mes') {
+    } else if (filtroFecha === 'semana' || filtroFecha === 'mes' || filtroFecha === 'mes_pasado') {
       key = d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0');
     } else {
       key = (d.getMonth() + 1).toString().padStart(2, '0') + '/' + d.getFullYear();
