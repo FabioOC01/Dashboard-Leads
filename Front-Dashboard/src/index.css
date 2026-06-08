@@ -540,12 +540,6 @@ button { font-family: inherit; cursor: pointer; }
    RANKING VENDEDORES
    ========================================================= */
 .ranking { display: flex; flex-direction: column; }
-.rank-sla-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 2px 4px 12px; }
-.rank-sla-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.rank-sla-legend__item i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.rank-sla-legend__item--ok i { background: var(--ok); }
-.rank-sla-legend__item--warn i { background: var(--warn); }
-.rank-sla-legend__item--danger i { background: var(--danger); }
 .rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border); min-width: 0; }
 .rank-row:last-child { border-bottom: none; }
 .rank-pos { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 13px; color: var(--ink-3); text-align: center; }
@@ -555,29 +549,23 @@ button { font-family: inherit; cursor: pointer; }
 .rank-meta { min-width: 0; }
 .rank-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rank-sub { font-size: 11.5px; color: var(--ink-3); display: flex; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-stat { text-align: right; min-width: 124px; display: flex; flex-direction: column; align-items: stretch; }
+.rank-stat { text-align: right; min-width: 188px; width: 188px; display: flex; flex-direction: column; align-items: stretch; gap: 7px; padding: 2px 0; }
 .rank-val { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 15px; }
-.rank-sla {
-  --rank-sla-c: var(--neutral);
-  --rank-sla-bg: var(--neutral-bg);
-  width: 124px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 5px 8px;
-  padding: 8px 11px 9px;
-  border-radius: 9px;
-  background: var(--rank-sla-bg);
-  color: var(--rank-sla-c);
-  border: 1px solid color-mix(in srgb, var(--rank-sla-c) 24%, transparent);
-}
-.rank-sla--ok { --rank-sla-c: var(--ok-ink); --rank-sla-bg: var(--ok-bg); }
-.rank-sla--warn { --rank-sla-c: var(--warn-ink); --rank-sla-bg: var(--warn-bg); }
-.rank-sla--danger { --rank-sla-c: var(--danger-ink); --rank-sla-bg: var(--danger-bg); }
-.rank-sla__label { font-size: 10px; font-weight: 800; letter-spacing: .06em; color: color-mix(in srgb, var(--rank-sla-c) 72%, var(--ink-3)); }
-.rank-sla__value { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 800; line-height: 1; text-align: right; color: var(--rank-sla-c); }
-.rank-sla__track { grid-column: 1 / -1; height: 5px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--rank-sla-c) 14%, var(--surface)); }
-.rank-sla__track > span { display: block; height: 100%; border-radius: inherit; background: var(--rank-sla-c); }
+.rank-stat__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rank-sla__label { font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase; }
+.rank-sla__value { font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 800; line-height: 1; }
+.rank-sla__value--ok { color: var(--ok-ink); }
+.rank-sla__value--warn { color: var(--warn-ink); }
+.rank-sla__value--danger { color: var(--danger-ink); }
+.rank-breakdown__track { display: flex; height: 7px; border-radius: 99px; overflow: hidden; background: var(--surface-3); }
+.rank-breakdown__track > span { display: block; height: 100%; }
+.rank-breakdown__track > span:not(:last-child) { margin-right: 1.5px; }
+.rank-breakdown__counts { display: flex; justify-content: flex-end; gap: 12px; }
+.rank-breakdown__count { display: flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.rank-breakdown__count i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.rank-breakdown__count--ok i { background: var(--ok); }
+.rank-breakdown__count--warn i { background: var(--warn); }
+.rank-breakdown__count--danger i { background: var(--danger); }
 
 /* =========================================================
    CRITICAL LEADS

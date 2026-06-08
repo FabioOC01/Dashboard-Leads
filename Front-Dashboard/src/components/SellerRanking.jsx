@@ -10,10 +10,6 @@ function slaTone(sla) {
 
 export default function SellerRanking({ data, onVerTodos }) {
   const rows = data || [];
-  const counts = rows.reduce((acc, r) => {
-    acc[slaTone(r.sla)]++;
-    return acc;
-  }, { ok: 0, warn: 0, danger: 0 });
 
   return (
     <div className="card">
@@ -27,16 +23,11 @@ export default function SellerRanking({ data, onVerTodos }) {
       </div>
       <div className="card__body" style={{ paddingTop: 4 }}>
         {rows.length === 0 && <div className="crit-empty">Sin datos de vendedores</div>}
-        {rows.length > 0 && (
-          <div className="rank-sla-legend">
-            <span className="rank-sla-legend__item rank-sla-legend__item--ok"><i />{counts.ok} en verde</span>
-            <span className="rank-sla-legend__item rank-sla-legend__item--warn"><i />{counts.warn} en amarillo</span>
-            <span className="rank-sla-legend__item rank-sla-legend__item--danger"><i />{counts.danger} en rojo</span>
-          </div>
-        )}
         <div className="ranking">
           {rows.map((r, i) => {
             const tone = slaTone(r.sla);
+            const respTotal = r.verde + r.amarillo + r.rojo;
+            const segPct = n => (respTotal ? (n / respTotal) * 100 : 0);
 
             return (
               <div className={'rank-row' + (i === 0 ? ' is-top' : '')} key={r.id}>
@@ -54,13 +45,24 @@ export default function SellerRanking({ data, onVerTodos }) {
                   </div>
                 </div>
                 <div className="rank-stat">
-                  <div className={'rank-sla rank-sla--' + tone}>
-                    <span className="rank-sla__label">SLA</span>
-                    <span className="rank-sla__value">{r.sla}%</span>
-                    <span className="rank-sla__track">
-                      <span style={{ width: Math.max(0, Math.min(100, r.sla)) + '%' }} />
-                    </span>
+                  <div className="rank-stat__head">
+                    <span className="rank-sla__label">SLA 1ª resp.</span>
+                    <span className={'rank-sla__value rank-sla__value--' + tone}>{r.sla}%</span>
                   </div>
+                  {respTotal > 0 && (
+                    <>
+                      <span className="rank-breakdown__track">
+                        <span style={{ width: segPct(r.verde) + '%', background: 'var(--ok)' }} />
+                        <span style={{ width: segPct(r.amarillo) + '%', background: 'var(--warn)' }} />
+                        <span style={{ width: segPct(r.rojo) + '%', background: 'var(--danger)' }} />
+                      </span>
+                      <div className="rank-breakdown__counts">
+                        <span className="rank-breakdown__count rank-breakdown__count--ok"><i />{r.verde}</span>
+                        <span className="rank-breakdown__count rank-breakdown__count--warn"><i />{r.amarillo}</span>
+                        <span className="rank-breakdown__count rank-breakdown__count--danger"><i />{r.rojo}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );
