@@ -546,6 +546,7 @@ button { font-family: inherit; cursor: pointer; }
 .rank-row.is-top .rank-pos { color: var(--primary); }
 .rank-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .rank-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.rank-av--photo { object-fit: cover; }
 .rank-meta { min-width: 0; }
 .rank-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rank-sub { font-size: 11.5px; color: var(--ink-3); display: flex; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -558,14 +559,9 @@ button { font-family: inherit; cursor: pointer; }
 .rank-sla__value--warn { color: var(--warn-ink); }
 .rank-sla__value--danger { color: var(--danger-ink); }
 .rank-breakdown__track { display: flex; height: 7px; border-radius: 99px; overflow: hidden; background: var(--surface-3); }
-.rank-breakdown__track > span { display: block; height: 100%; }
-.rank-breakdown__track > span:not(:last-child) { margin-right: 1.5px; }
-.rank-breakdown__counts { display: flex; justify-content: flex-end; gap: 12px; }
-.rank-breakdown__count { display: flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.rank-breakdown__count i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-.rank-breakdown__count--ok i { background: var(--ok); }
-.rank-breakdown__count--warn i { background: var(--warn); }
-.rank-breakdown__count--danger i { background: var(--danger); }
+.rank-breakdown__seg { display: block; height: 100%; cursor: default; transition: filter .12s ease; }
+.rank-breakdown__seg:hover { filter: brightness(1.15); }
+.rank-breakdown__seg:not(:last-child) { margin-right: 1.5px; }
 
 /* =========================================================
    CRITICAL LEADS

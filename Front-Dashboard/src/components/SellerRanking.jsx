@@ -35,7 +35,10 @@ export default function SellerRanking({ data, onVerTodos }) {
                   {i === 0 ? <Icon name="trophy" size={15} style={{ color: 'var(--warn)' }} /> : i + 1}
                 </span>
                 <div className="rank-id">
-                  <span className="rank-av" style={{ background: avatarColor(r.name) }}>{initials(r.name)}</span>
+                  {r.foto_url
+                    ? <img className="rank-av rank-av--photo" src={r.foto_url} alt={r.name} />
+                    : <span className="rank-av" style={{ background: avatarColor(r.name) }}>{initials(r.name)}</span>
+                  }
                   <div className="rank-meta">
                     <div className="rank-name">{r.name}</div>
                     <div className="rank-sub">
@@ -50,18 +53,11 @@ export default function SellerRanking({ data, onVerTodos }) {
                     <span className={'rank-sla__value rank-sla__value--' + tone}>{r.sla}%</span>
                   </div>
                   {respTotal > 0 && (
-                    <>
-                      <span className="rank-breakdown__track">
-                        <span style={{ width: segPct(r.verde) + '%', background: 'var(--ok)' }} />
-                        <span style={{ width: segPct(r.amarillo) + '%', background: 'var(--warn)' }} />
-                        <span style={{ width: segPct(r.rojo) + '%', background: 'var(--danger)' }} />
-                      </span>
-                      <div className="rank-breakdown__counts">
-                        <span className="rank-breakdown__count rank-breakdown__count--ok"><i />{r.verde}</span>
-                        <span className="rank-breakdown__count rank-breakdown__count--warn"><i />{r.amarillo}</span>
-                        <span className="rank-breakdown__count rank-breakdown__count--danger"><i />{r.rojo}</span>
-                      </div>
-                    </>
+                    <span className="rank-breakdown__track">
+                      <span className="rank-breakdown__seg" style={{ width: segPct(r.verde) + '%', background: 'var(--ok)' }} title={`${r.verde} en verde`} />
+                      <span className="rank-breakdown__seg" style={{ width: segPct(r.amarillo) + '%', background: 'var(--warn)' }} title={`${r.amarillo} en amarillo`} />
+                      <span className="rank-breakdown__seg" style={{ width: segPct(r.rojo) + '%', background: 'var(--danger)' }} title={`${r.rojo} en rojo`} />
+                    </span>
                   )}
                 </div>
               </div>

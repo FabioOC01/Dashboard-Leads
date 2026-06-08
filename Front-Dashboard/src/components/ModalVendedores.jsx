@@ -3,7 +3,7 @@ import { getVendedores, createVendedor, updateVendedor, deleteVendedor } from '.
 
 const ROLES = ['vendedor', 'tecnico'];
 
-const VACIO = { nombre: '', email: '', whatsapp: '', rol: 'vendedor' };
+const VACIO = { nombre: '', email: '', whatsapp: '', rol: 'vendedor', foto_url: '' };
 
 export default function ModalVendedores({ onClose }) {
   const [vendedores, setVendedores] = useState([]);
@@ -24,7 +24,7 @@ export default function ModalVendedores({ onClose }) {
 
   const abrirEditar = (v) => {
     setEditando(v.id);
-    setForm({ nombre: v.nombre || '', email: v.email || '', whatsapp: v.whatsapp || '', rol: v.rol || 'vendedor' });
+    setForm({ nombre: v.nombre || '', email: v.email || '', whatsapp: v.whatsapp || '', rol: v.rol || 'vendedor', foto_url: v.foto_url || '' });
     setError('');
   };
 
@@ -116,6 +116,22 @@ export default function ModalVendedores({ onClose }) {
                 onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
                 style={inputStyle}
               />
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, alignItems: 'center' }}>
+                <input
+                  placeholder="URL de foto (https://...)"
+                  value={form.foto_url}
+                  onChange={e => setForm(f => ({ ...f, foto_url: e.target.value }))}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                {form.foto_url && (
+                  <img
+                    src={form.foto_url}
+                    alt=""
+                    style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #ddd' }}
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+              </div>
             </div>
             {error && <div style={{ color: '#E74C3C', fontSize: 12 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -134,6 +150,10 @@ export default function ModalVendedores({ onClose }) {
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 0', borderBottom: '1px solid #f0f0f0',
             }}>
+              {v.foto_url
+                ? <img src={v.foto_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                : <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#e0e7ef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7a90', flexShrink: 0 }}>{v.nombre.slice(0, 2).toUpperCase()}</span>
+              }
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#1e2a3b' }}>{v.nombre}</div>
                 <div style={{ fontSize: 12, color: '#888' }}>

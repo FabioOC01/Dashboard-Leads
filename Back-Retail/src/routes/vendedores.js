@@ -17,21 +17,21 @@ router.get('/tecnicos', async (req, res) => {
 });
 
 router.post('/', admin, async (req, res) => {
-    const { nombre, email, whatsapp, rol } = req.body;
+    const { nombre, email, whatsapp, rol, foto_url } = req.body;
     const { rows } = await pool.query(
-        `INSERT INTO vendedores (nombre, email, whatsapp, rol) VALUES ($1,$2,$3,$4) RETURNING *`,
-        [nombre, email, whatsapp, rol || 'vendedor']
+        `INSERT INTO vendedores (nombre, email, whatsapp, rol, foto_url) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [nombre, email, whatsapp, rol || 'vendedor', foto_url || null]
     );
     res.json(rows[0]);
 });
 
 router.put('/:id', admin, async (req, res) => {
     const { id } = req.params;
-    const { nombre, email, whatsapp, rol } = req.body;
+    const { nombre, email, whatsapp, rol, foto_url } = req.body;
     try {
         const { rows } = await pool.query(
-            `UPDATE vendedores SET nombre=$1, email=$2, whatsapp=$3, rol=$4 WHERE id=$5 RETURNING *`,
-            [nombre, email, whatsapp, rol, id]
+            `UPDATE vendedores SET nombre=$1, email=$2, whatsapp=$3, rol=$4, foto_url=$5 WHERE id=$6 RETURNING *`,
+            [nombre, email, whatsapp, rol, foto_url || null, id]
         );
         if (!rows.length) return res.status(404).json({ error: 'Vendedor no encontrado' });
         res.json(rows[0]);

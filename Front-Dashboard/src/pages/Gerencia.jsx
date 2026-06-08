@@ -579,10 +579,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         id: v.name, name: v.name, ventas: v.ventas, leads: v.leads,
         sla: v.total ? Math.round(v.ok / v.total * 100) : 0,
         verde: v.verde, amarillo: v.amarillo, rojo: v.rojo,
+        foto_url: vendedores.find(vd => vd.nombre === v.name)?.foto_url || null,
       }))
       .sort((a, b) => b.ventas - a.ventas || b.leads - a.leads)
       .slice(0, 6);
-  }, [leadsFiltrados, fetchedAt]);
+  }, [leadsFiltrados, fetchedAt, vendedores]);
 
   const detalleLeads = useMemo(() => {
     const q = detalleQuery.trim().toLowerCase();
