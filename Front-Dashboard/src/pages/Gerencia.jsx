@@ -20,7 +20,7 @@ import ModalVendedores from '../components/ModalVendedores';
 import { Icon } from '../components/Icon';
 import {
   STATUS_ORDER, ESTADOS_CERRADOS, businessMinutesSince, statusMeta, canalMeta,
-  getMinutosPrimeraRespuesta,
+  getMinutosPrimeraRespuesta, slaLevel,
 } from '../utils/domain';
 
 const TIPO_PALETTE = ['var(--primary)', 'var(--st-derivado)', 'var(--st-venta)', 'var(--warn)', 'var(--st-cotizado)', 'var(--st-tecnico)', 'var(--neutral)'];
@@ -558,7 +558,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     leadsFiltrados.forEach(l => {
       const name = l.vendedor_nombre;
       if (!name) return;
-      if (!byV.has(name)) byV.set(name, { name, ventas: 0, leads: 0, ok: 0, total: 0 });
+      if (!byV.has(name)) byV.set(name, { name, ventas: 0, leads: 0, ok: 0, total: 0, verde: 0, amarillo: 0, rojo: 0 });
       const v = byV.get(name);
       v.leads++;
       if (l.estado === 'venta_efectiva') v.ventas++;
@@ -569,9 +569,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       else t = 0;
       v.total++;
       if (t <= 20) v.ok++;
+      const nivel = slaLevel(t, SLA_RESPUESTA, 20);
+      if (nivel === 'sla-ok') v.verde++;
+      else if (nivel === 'sla-warn') v.amarillo++;
+      else v.rojo++;
     });
     return [...byV.values()]
-      .map(v => ({ id: v.name, name: v.name, ventas: v.ventas, leads: v.leads, sla: v.total ? Math.round(v.ok / v.total * 100) : 0 }))
+      .map(v => ({
+        id: v.name, name: v.name, ventas: v.ventas, leads: v.leads,
+        sla: v.total ? Math.round(v.ok / v.total * 100) : 0,
+        verde: v.verde, amarillo: v.amarillo, rojo: v.rojo,
+      }))
       .sort((a, b) => b.ventas - a.ventas || b.leads - a.leads)
       .slice(0, 6);
   }, [leadsFiltrados, fetchedAt]);
