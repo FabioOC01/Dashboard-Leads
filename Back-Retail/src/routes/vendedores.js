@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
+const admin = require('../middleware/verificarAdmin');
 
 router.get('/', async (req, res) => {
     const { rows } = await pool.query(
@@ -15,7 +16,7 @@ router.get('/tecnicos', async (req, res) => {
     res.json(rows);
 });
 
-router.post('/', async (req, res) => {
+router.post('/', admin, async (req, res) => {
     const { nombre, email, whatsapp, rol } = req.body;
     const { rows } = await pool.query(
         `INSERT INTO vendedores (nombre, email, whatsapp, rol) VALUES ($1,$2,$3,$4) RETURNING *`,
@@ -24,7 +25,7 @@ router.post('/', async (req, res) => {
     res.json(rows[0]);
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', admin, async (req, res) => {
     const { id } = req.params;
     const { nombre, email, whatsapp, rol } = req.body;
     try {
@@ -39,7 +40,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', admin, async (req, res) => {
     const { id } = req.params;
     try {
         await pool.query(`UPDATE vendedores SET activo=false WHERE id=$1`, [id]);

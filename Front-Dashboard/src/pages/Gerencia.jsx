@@ -1,86 +1,68 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { getLeads, getMetricas, getMetricasTecnico, getTecnicos, getVendedores } from '../api/leads';
 import { useSocket, emitTestAudio, emitForceReload } from '../hooks/useSocket';
-import TarjetaMetrica from '../components/TarjetaMetrica';
-import TablaLeads from '../components/TablaLeads';
-import TablaResumen from '../components/TablaResumen';
-import DashboardTecnicos from '../components/DashboardTecnicos';
-import GraficoTiempo from '../components/GraficoTiempo';
-import GraficoBarrasTop from '../components/GraficoBarrasTop';
-import GraficoDonut from '../components/GraficoDonut';
-import GraficoSLA from '../components/GraficoSLA';
-import GraficoEstados from '../components/GraficoEstados';
-import ToastContainer, { useToasts } from '../components/ToastContainer';
 import { playNuevoLead, playAlertaSLA, playVentaEfectiva, playInicioJornada, playFinJornada } from '../utils/sounds';
 import confetti from 'canvas-confetti';
+
+import Topbar from '../components/Topbar';
+import FilterSidebar from '../components/FilterSidebar';
+import LiveTicker from '../components/LiveTicker';
+import KpiStrip from '../components/KpiStrip';
+import CriticalLeads from '../components/CriticalLeads';
+import SlaSemaphore from '../components/SlaSemaphore';
+import Breakdown from '../components/Breakdown';
+import SellerRanking from '../components/SellerRanking';
+import TemporalChart from '../components/TemporalChart';
+import OperativeTable from '../components/OperativeTable';
+import TablaLeads from '../components/TablaLeads';
+import ToastContainer, { useToasts } from '../components/ToastContainer';
 import ModalVendedores from '../components/ModalVendedores';
+import { Icon } from '../components/Icon';
+import {
+  STATUS_ORDER, ESTADOS_CERRADOS, businessMinutesSince, statusMeta, canalMeta,
+  getMinutosPrimeraRespuesta,
+} from '../utils/domain';
 
-const MoonIcon = () => <span style={{ fontSize: 20 }}>☾</span>;
-const SunIcon = () => <span style={{ fontSize: 20 }}>☀</span>;
-
-function FilterGroup({ label, children, defaultOpen = true, badge }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-        padding: '5px 0', marginBottom: open ? 8 : 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#5a7090', textTransform: 'uppercase' }}>{label}</span>
-          {badge && (
-            <span style={{ background: '#2f6fd4', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 10 }}>{badge}</span>
-          )}
-        </div>
-        <span style={{ color: '#5a7090', fontSize: 10, transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
-      </button>
-      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</div>}
-    </div>
-  );
-}
+const TIPO_PALETTE = ['var(--primary)', 'var(--st-derivado)', 'var(--st-venta)', 'var(--warn)', 'var(--st-cotizado)', 'var(--st-tecnico)', 'var(--neutral)'];
 
 const SLA_RESPUESTA = 15;
 const SLA_COTIZACION = 240;
 const SLA_ALERTA_ANTES = 5;
 
-function isHorarioHabil(ts = Date.now()) {
-  const t = new Date(new Date(ts).toLocaleString('en-US', { timeZone: 'America/Lima' }));
-  const day = t.getDay();
-  const min = t.getHours() * 60 + t.getMinutes();
-  if (day === 0) return false;
-  if (day === 6) return min >= 9 * 60 + 30 && min < 14 * 60;
-  return min >= 9 * 60 + 30 && min < 18 * 60 + 30;
+function pctChange(arr) {
+  if (!arr || arr.length < 2) return null;
+  const prev = arr[arr.length - 2], last = arr[arr.length - 1];
+  if (!prev) return null;
+  return Math.round((last - prev) / prev * 100);
 }
 
-function businessMinutesSince(fromTs) {
-  if (!isHorarioHabil()) return 0;
-  const toLima = t => new Date(new Date(t).toLocaleString('en-US', { timeZone: 'America/Lima' }));
-  const fromLima = toLima(fromTs);
-  const nowLima  = toLima(Date.now());
-  const BIZ_START = 9 * 60 + 30;
-  const fromMin = fromLima.getHours() * 60 + fromLima.getMinutes() + fromLima.getSeconds() / 60;
-  const nowMin  = nowLima.getHours()  * 60 + nowLima.getMinutes()  + nowLima.getSeconds()  / 60;
-  return Math.max(0, nowMin - Math.max(fromMin, BIZ_START));
+/* mapea un lead a un evento del ticker (un icono/tipo por estado)
+   Campos separados (pre / strong / post) — se renderizan como JSX, sin HTML crudo. */
+function leadToTick(l) {
+  const t = l.ts_lead_creado
+    ? new Date(l.ts_lead_creado).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' })
+    : '';
+  const nombre = l.nombre || 'Lead';
+  const base = { id: l.id, t, post: '' };
+  switch (l.estado) {
+    case 'venta_efectiva':   return { ...base, type: 'venta',    pre: 'Venta efectiva · ',     strong: l.vendedor_nombre || nombre };
+    case 'derivado':
+    case 'cotizado_tecnico': return { ...base, type: 'derivado', pre: 'Derivado a técnico · ', strong: nombre };
+    case 'cotizado':         return { ...base, type: 'cotizado', pre: 'Cotizado · ',           strong: nombre };
+    case 'en_atencion':      return { ...base, type: 'atencion', pre: 'En atención · ',        strong: nombre };
+    default:                 return { ...base, type: 'nuevo',    pre: 'Nuevo lead · ',         strong: nombre, post: l.canal ? ` · ${l.canal}` : '' };
+  }
 }
-
-const FILTROS_FECHA = [
-  { value: 'dia', label: 'Hoy' },
-  { value: 'semana', label: 'Esta semana' },
-  { value: 'mes', label: 'Este mes' },
-  { value: 'mes_pasado', label: 'Mes pasado' },
-  { value: 'todos', label: 'Histórico' },
-];
 
 export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [leads, setLeads] = useState([]);
   const [metricas, setMetricas] = useState([]);
   const [metricasTecnico, setMetricasTecnico] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState('mes');
+  const [filtroFecha, setFiltroFecha] = useState('semana');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [ultimaActualizacion, setUltima] = useState(new Date());
   const { ultimoEvento, conectado, testAudio } = useSocket();
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [filtroCanal, setFiltroCanal] = useState('');
@@ -94,39 +76,35 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const ventaConfettiTriggered = useRef(new Set());
   const prevEnHorario = useRef(null);
 
-  const [collapsed, setCollapsed] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'detalle'
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showVendedores, setShowVendedores] = useState(false);
-  const [showTestMenu, setShowTestMenu] = useState(false);
-  const testMenuRef = useRef(null);
+  const [query, setQuery] = useState('');
+  const [detalleQuery, setDetalleQuery] = useState('');
+  const [newIds, setNewIds] = useState(() => new Set());
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (!showTestMenu) return;
-    const handler = (e) => {
-      if (testMenuRef.current && !testMenuRef.current.contains(e.target)) setShowTestMenu(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showTestMenu]);
-
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => console.error("Error fullscreen", err));
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
+      document.documentElement.requestFullscreen().catch(err => console.error('Error fullscreen', err));
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
     }
   };
 
   useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', 'balanced');
+  }, []);
 
   const cargarDatos = useCallback(async (silent = false) => {
     const now = new Date();
@@ -236,10 +214,8 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
           return {
             ...l,
             ...dataEnriquecida,
-            // Preservar timestamps de inicio de timer para que no se reinicien
             _socketAt: l._socketAt ?? dataEnriquecida._socketAt,
             _cotizacionAt: l._cotizacionAt ?? dataEnriquecida._cotizacionAt,
-            // Preservar campos computados del fetch anterior si el socket no los trae
             min_esperando_respuesta: dataEnriquecida.min_esperando_respuesta ?? l.min_esperando_respuesta,
             min_esperando_cotizacion: dataEnriquecida.min_esperando_cotizacion ?? l.min_esperando_cotizacion,
             min_primera_respuesta: dataEnriquecida.min_primera_respuesta ?? l.min_primera_respuesta,
@@ -255,12 +231,17 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     // Re-fetch silencioso para restaurar campos computados (min_cotizacion, etc.)
     setTimeout(() => cargarDatos(true), 600);
 
+    // ── Resaltado de filas nuevas (el ticker se deriva de leadsFiltrados) ──
+    if (tipo === 'nuevo') {
+      setNewIds(s => { const n = new Set(s); n.add(data.id); return n; });
+      setTimeout(() => setNewIds(s => { const n = new Set(s); n.delete(data.id); return n; }), 1600);
+    }
 
     // Toast para nuevo lead
     if (tipo === 'nuevo') {
       playNuevoLead(data.vendedor_nombre || '');
       addToast({
-        title: '🟢 Nuevo Lead',
+        title: 'Nuevo Lead',
         vendor: data.vendedor_nombre || data.asesor_asignado || 'Sin asignar',
         detail: data.nombre || 'Sin nombre',
       }, 'success');
@@ -273,20 +254,20 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       ventaConfettiTriggered.current.add(data.id);
       playVentaEfectiva();
       addToast({
-        title: '🎉 ¡Venta Efectiva!',
+        title: '¡Venta Efectiva!',
         vendor: data.vendedor_nombre || 'Sin asesor',
         detail: data.nombre || 'Lead',
       }, 'success');
       const duration = 4000;
       const end = Date.now() + duration;
-      const colors = ['#27AE60', '#F1C40F', '#E74C3C', '#3498DB', '#9B59B6'];
+      const colors = ['#0a5b89', '#1c8a5a', '#bd7a08', '#3257b8', '#7a4fcf'];
       (function frame() {
         confetti({ particleCount: 6, angle: 60, spread: 55, origin: { x: 0 }, colors });
         confetti({ particleCount: 6, angle: 120, spread: 55, origin: { x: 1 }, colors });
         if (Date.now() < end) requestAnimationFrame(frame);
       })();
     }
-  }, [ultimoEvento, cargarDatos]);
+  }, [ultimoEvento, cargarDatos, addToast]);
 
   // ── Alerta SLA por vencer (cada 30s) ──
   useEffect(() => {
@@ -295,7 +276,6 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         const key = `${l.id}-resp`;
         const keyCot = `${l.id}-cot`;
 
-        // SLA Primera Respuesta
         if (l.estado === 'nuevo' && !alertedLeads.current.has(key)) {
           const leadElapsed = l._socketAt != null ? businessMinutesSince(l._socketAt) : businessMinutesSince(fetchedAt);
           let t = 0;
@@ -308,14 +288,13 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             alertedLeads.current.add(key);
             playAlertaSLA();
             addToast({
-              title: '⚠️ SLA por vencer — 1ra Respuesta',
+              title: 'SLA por vencer — 1ra Respuesta',
               vendor: l.vendedor_nombre || 'Sin asignar',
               detail: `${l.nombre} · Quedan ${Math.ceil(SLA_RESPUESTA - t)} min`,
             }, 'warning');
           }
         }
 
-        // SLA Cotización
         if (l.estado === 'en_atencion' && !alertedLeads.current.has(keyCot)) {
           const leadElapsed = l._cotizacionAt != null ? businessMinutesSince(l._cotizacionAt) : businessMinutesSince(fetchedAt);
           let t = 0;
@@ -328,7 +307,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
             alertedLeads.current.add(keyCot);
             playAlertaSLA();
             addToast({
-              title: '⚠️ SLA por vencer — Cotización',
+              title: 'SLA por vencer — Cotización',
               vendor: l.vendedor_nombre || 'Sin asignar',
               detail: `${l.nombre} · Quedan ${Math.ceil(SLA_COTIZACION - t)} min`,
             }, 'danger');
@@ -337,7 +316,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       });
     };
     const iv = setInterval(check, 30000);
-    check(); // ejecutar inmediatamente
+    check();
     return () => clearInterval(iv);
   }, [leads, fetchedAt, addToast]);
 
@@ -345,12 +324,12 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   useEffect(() => {
     if (!testAudio) return;
     const { tipo } = testAudio;
-    if (tipo === 'nuevo_lead')  { playNuevoLead(''); addToast('🔊 Test global: Nuevo Lead', 'info'); }
-    if (tipo === 'sla')         { playAlertaSLA();   addToast('⚠️ Test global: Alerta SLA', 'warning'); }
-    if (tipo === 'venta')       { playVentaEfectiva(); addToast('🎉 Test global: Venta Efectiva', 'success'); }
-    if (tipo === 'inicio')      { playInicioJornada(); addToast('🟢 Test global: Inicio jornada', 'success'); }
-    if (tipo === 'fin')         { playFinJornada();    addToast('🔴 Test global: Fin jornada', 'info'); }
-  }, [testAudio]);
+    if (tipo === 'nuevo_lead') { playNuevoLead(''); addToast('Test global: Nuevo Lead', 'info'); }
+    if (tipo === 'sla') { playAlertaSLA(); addToast('Test global: Alerta SLA', 'warning'); }
+    if (tipo === 'venta') { playVentaEfectiva(); addToast('Test global: Venta Efectiva', 'success'); }
+    if (tipo === 'inicio') { playInicioJornada(); addToast('Test global: Inicio jornada', 'success'); }
+    if (tipo === 'fin') { playFinJornada(); addToast('Test global: Fin jornada', 'info'); }
+  }, [testAudio, addToast]);
 
   const enHorarioHabil = (() => {
     const t = new Date(currentTime.toLocaleString('en-US', { timeZone: 'America/Lima' }));
@@ -363,39 +342,75 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   // ── Melodía de inicio / fin de jornada ──
   useEffect(() => {
-    // Ignorar la primera renderización (no sabemos el estado anterior)
     if (prevEnHorario.current === null) {
       prevEnHorario.current = enHorarioHabil;
       return;
     }
     if (enHorarioHabil && !prevEnHorario.current) {
       playInicioJornada();
-      addToast('🟢 ¡Inicio de jornada laboral! Buen día equipo 💪', 'success');
+      addToast('¡Inicio de jornada laboral! Buen día equipo 💪', 'success');
     }
     if (!enHorarioHabil && prevEnHorario.current) {
       playFinJornada();
-      addToast('🔴 Fin de la jornada laboral. ¡Buen descanso! 🌙', 'info');
+      addToast('Fin de la jornada laboral. ¡Buen descanso! 🌙', 'info');
     }
     prevEnHorario.current = enHorarioHabil;
-  }, [enHorarioHabil]);
+  }, [enHorarioHabil, addToast]);
 
+  // ── Acciones admin ──
+  const handleForceReload = () => {
+    if (confirm('¿Forzar recarga de dashboard en todos los clientes conectados?')) emitForceReload();
+  };
+  const handleTestGlobal = (tipo) => {
+    if (tipo === 'nuevo_lead') playNuevoLead('');
+    if (tipo === 'sla') playAlertaSLA();
+    if (tipo === 'venta') playVentaEfectiva();
+    if (tipo === 'inicio') playInicioJornada();
+    if (tipo === 'fin') playFinJornada();
+    emitTestAudio(tipo);
+  };
+  const handleTestAlert = () => {
+    playAlertaSLA();
+    addToast('Probando alerta crítica de SLA', 'error');
+    setTimeout(() => { playNuevoLead('Erimay'); addToast('Probando alerta lead: Erimay', 'info'); }, 1500);
+    setTimeout(() => { playNuevoLead('Sthefania'); addToast('Probando alerta lead: Sthefania', 'info'); }, 3000);
+    setTimeout(() => { playNuevoLead('Estefany'); addToast('Probando alerta lead: Estefany', 'info'); }, 4500);
+    setTimeout(() => { playNuevoLead('Otro'); addToast('Probando alerta lead genérico (beep)', 'info'); }, 6000);
+    setTimeout(() => {
+      playVentaEfectiva();
+      addToast('¡Probando celebración de venta!', 'success');
+      const duration = 2500;
+      const end = Date.now() + duration;
+      const colors = ['#0a5b89', '#1c8a5a', '#bd7a08', '#3257b8', '#7a4fcf'];
+      (function frame() {
+        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors });
+        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+    }, 7500);
+    setTimeout(() => { playInicioJornada(); addToast('Probando: Inicio de jornada laboral 💪', 'success'); }, 10500);
+    setTimeout(() => { playFinJornada(); addToast('Probando: Fin de jornada laboral 🌙', 'info'); }, 12500);
+  };
+
+  // ── Filtros / listas ──
   const tiposUnicos = Array.from(new Set(leads.map(l => l.tipo || 'General')));
   const estadosUnicos = Array.from(new Set(leads.map(l => l.estado || 'nuevo')));
   const vendedoresUnicos = Array.from(new Set(leads.filter(l => l.vendedor_nombre).map(l => l.vendedor_nombre)));
   const canalesUnicos = Array.from(new Set(leads.filter(l => l.canal).map(l => l.canal)));
+  const estadoCounts = useMemo(() => {
+    const c = {};
+    leads.forEach(l => { c[l.estado] = (c[l.estado] || 0) + 1; });
+    return c;
+  }, [leads]);
 
-  const ESTADO_LABELS = {
-    nuevo: 'Nuevo', en_atencion: 'En atención', cotizado: 'Cotizado',
-    derivado: 'Derivado', cotizado_tecnico: 'Cot. Técnico',
-    venta_efectiva: 'Venta efectiva', negociacion_futuro: 'Neg. a futuro', no_efectiva: 'No efectiva'
+  const limpiarFiltros = () => {
+    setFiltroFecha('semana'); setFiltroEstado(''); setFiltroTipo(''); setFiltroVendedor(''); setFiltroCanal('');
   };
-  const ESTADO_COLORS = {
-    nuevo: '#3B82F6', en_atencion: '#F59E0B', cotizado: '#8B5CF6',
-    derivado: '#06B6D4', cotizado_tecnico: '#0D9488',
-    venta_efectiva: '#22C55E', negociacion_futuro: '#F97316', no_efectiva: '#EF4444',
-  };
+  const activeFilterCount =
+    (filtroEstado ? 1 : 0) + (filtroVendedor ? 1 : 0) + (filtroCanal ? 1 : 0) +
+    (filtroTipo ? 1 : 0) + (filtroFecha !== 'semana' ? 1 : 0);
 
-  // Cálculos y Filtros Principales
+  // ── Leads filtrados ──
   const now = new Date();
   const leadsFiltrados = leads.filter(l => {
     const tipoReal = l.tipo || 'General';
@@ -404,12 +419,15 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     if (filtroVendedor !== '' && l.vendedor_nombre !== filtroVendedor) return false;
     if (filtroCanal !== '' && l.canal !== filtroCanal) return false;
 
-    if (!l.ts_lead_creado) return true;
-    const d = new Date(l.ts_lead_creado);
+    // Fecha de referencia = fecha efectiva (mueve fines de semana / fuera de horario al
+    // siguiente día hábil), con fallback a la fecha de creación.
+    const refDate = l.ts_efectivo || l.ts_lead_creado;
+    if (!refDate) return true;
+    const d = new Date(refDate);
     if (filtroFecha === 'dia') return d.toDateString() === now.toDateString();
     if (filtroFecha === 'semana') {
       const day = now.getDay();
-      const diffToMonday = day === 0 ? 6 : day - 1; // 0=Sun
+      const diffToMonday = day === 0 ? 6 : day - 1;
       const minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
       minDate.setHours(0, 0, 0, 0);
       return d >= minDate;
@@ -422,696 +440,258 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     return true;
   });
 
-  const ESTADOS_CERRADOS = ['venta_efectiva', 'negociacion_futuro', 'no_efectiva'];
-  const activos = leadsFiltrados.filter(l => l.estado === 'nuevo').length;
+  // ── Conteos / SLA ──
   const cerrados = leadsFiltrados.filter(l => ESTADOS_CERRADOS.includes(l.estado)).length;
-  const leadsAbiertos = leadsFiltrados.filter(l => !ESTADOS_CERRADOS.includes(l.estado));
+  const ventasCount = leadsFiltrados.filter(l => l.estado === 'venta_efectiva').length;
 
-  let aTiempo = 0;
-  let enRiesgo = 0;
-  let atrasados = 0;
-
+  let aTiempo = 0, enRiesgo = 0, atrasados = 0;
   leadsFiltrados.forEach(l => {
     let t;
-    if (l.ts_primera_respuesta) {
-      t = parseFloat(l.min_primera_respuesta) || 0;
-    } else if (l._socketAt != null) {
-      t = businessMinutesSince(l._socketAt);
-    } else if (l.min_esperando_respuesta != null) {
-      t = parseFloat(l.min_esperando_respuesta) + businessMinutesSince(fetchedAt);
-    } else {
-      t = 0;
-    }
-
+    if (l.ts_primera_respuesta) t = parseFloat(l.min_primera_respuesta) || 0;
+    else if (l._socketAt != null) t = businessMinutesSince(l._socketAt);
+    else if (l.min_esperando_respuesta != null) t = parseFloat(l.min_esperando_respuesta) + businessMinutesSince(fetchedAt);
+    else t = 0;
     if (t > 20) atrasados++;
     else if (t > 15) enRiesgo++;
     else aTiempo++;
   });
-  const slaCumplidos = aTiempo + enRiesgo;
   const total = leadsFiltrados.length;
+  const slaPct = total ? Math.round(((aTiempo + enRiesgo) / total) * 100) : 0;
 
-  // Chart Data: Motivos (Tipos)
-  const motivosCount = {};
-  leadsFiltrados.forEach(l => {
-    const t = l.tipo || 'General';
-    motivosCount[t] = (motivosCount[t] || 0) + 1;
-  });
-  const TIPO_ICONS = {
-    'academia': 'https://comutelperu.com/correo-cm/Iconos/academia.png',
-    'requerimiento': 'https://comutelperu.com/correo-cm/Iconos/requerimiento.png',
-    'soporte': 'https://comutelperu.com/correo-cm/Iconos/soporte-tecnico.png',
-    'producto': 'https://comutelperu.com/correo-cm/Iconos/producto.png',
-  };
-  const dataMotivos = Object.entries(motivosCount)
-    .map(([name, value]) => ({ name, value, icon: TIPO_ICONS[name.toLowerCase()] || null }))
-    .sort((a, b) => b.value - a.value);
+  // ── Series temporales (leads / ventas por hora o por día) ──
+  const series = useMemo(() => {
+    if (filtroFecha === 'dia') {
+      const hours = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
+      const idx = h => hours.indexOf(String(h).padStart(2, '0'));
+      const L = hours.map(() => 0), V = hours.map(() => 0), B = hours.map(() => 0);
+      leadsFiltrados.forEach(l => {
+        const ref = l.ts_efectivo || l.ts_lead_creado;
+        if (ref) { const i = idx(new Date(ref).getHours()); if (i >= 0) L[i]++; }
+        if (l.estado === 'venta_efectiva' && l.ts_cierre) { const i = idx(new Date(l.ts_cierre).getHours()); if (i >= 0) V[i]++; }
+      });
+      return { labels: hours, leads: L, ventas: V, breach: B };
+    }
+    const map = new Map();
+    leadsFiltrados.forEach(l => {
+      const ref = l.ts_efectivo || l.ts_lead_creado;
+      if (!ref) return;
+      const key = new Date(ref).toISOString().slice(0, 10);
+      if (!map.has(key)) map.set(key, { leads: 0, ventas: 0 });
+      const b = map.get(key);
+      b.leads++;
+      if (l.estado === 'venta_efectiva') b.ventas++;
+    });
+    const keys = [...map.keys()].sort().slice(-14);
+    return {
+      labels: keys.map(k => { const d = new Date(k + 'T00:00'); return `${d.getDate()}/${d.getMonth() + 1}`; }),
+      leads: keys.map(k => map.get(k).leads),
+      ventas: keys.map(k => map.get(k).ventas),
+      breach: keys.map(() => 0),
+    };
+  }, [leadsFiltrados, filtroFecha]);
 
-  // Chart Data: Canales
-  const CANAL_ICONS = {
-    store: 'https://comutelperu.com/correo-cm/Iconos/odoo.png?v=2',
-    whatsapp: 'https://comutelperu.com/correo-cm/Iconos/whatsapp.png',
-    facebook: 'https://comutelperu.com/correo-cm/Iconos/facebook.png?v=2',
-    instagram: 'https://comutelperu.com/correo-cm/Iconos/instagram.png',
-    web: 'https://comutelperu.com/correo-cm/Logo/ISO.png',
-  };
-  const CANAL_COLORS = {
-    store: '#7C3AED',
-    whatsapp: '#25D366',
-    facebook: '#60A5FA',
-    instagram: '#EC4899',
-    web: '#38BDF8',
-    tiktok: '#9CA3AF',
-    youtube: '#EF4444',
-  };
-  const canalesCount = {};
-  // Inicializar todos los canales conocidos en 0
-  Object.keys(CANAL_COLORS).forEach(c => { canalesCount[c] = 0; });
-  leadsFiltrados.forEach(l => {
-    const c = (l.canal || 'Desconocido').toLowerCase();
-    canalesCount[c] = (canalesCount[c] || 0) + 1;
-  });
-  const dataCanales = Object.entries(canalesCount)
-    .map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value,
-      color: CANAL_COLORS[name.toLowerCase()] || '#6B7280',
-      icon: CANAL_ICONS[name.toLowerCase()] || null,
-    }))
-    .sort((a, b) => b.value - a.value);
+  // ── KPIs ──
+  const kpis = [
+    { key: 'leads', label: filtroFecha === 'dia' ? 'Leads hoy' : 'Leads', value: total, icon: 'layers', accent: 'var(--primary)', spark: series.leads, trend: pctChange(series.leads), good: 'up' },
+    { key: 'sales', label: 'Ventas efectivas', value: ventasCount, icon: 'check2', accent: 'var(--st-venta)', spark: series.ventas, trend: pctChange(series.ventas), good: 'up' },
+    { key: 'sla', label: 'SLA cumplido', value: slaPct, suffix: '%', icon: 'target', accent: 'var(--ok)', good: 'up', note: '1ª resp.' },
+  ];
+
+  // ── Embudo ──
+  // Ticker derivado de los leads filtrados (respeta filtros) — eventos por estado + alertas SLA
+  const tickerItems = useMemo(() => {
+    // alertas SLA de 1ª respuesta (pendientes, por vencer o vencidos)
+    const slaItems = leadsFiltrados
+      .filter(l => l.estado === 'nuevo' && !l.ts_primera_respuesta)
+      .map(l => {
+        const rem = SLA_RESPUESTA - (getMinutosPrimeraRespuesta(l, fetchedAt) ?? 0);
+        if (rem > 5) return null;
+        const nombre = l.nombre || 'Lead';
+        return rem < 0
+          ? { id: 'sla' + l.id, type: 'breach', t: '', pre: 'SLA vencido · ', strong: nombre, post: ' · 1ª resp.' }
+          : { id: 'sla' + l.id, type: 'sla', t: '', pre: 'SLA por vencer · ', strong: nombre, post: '' };
+      })
+      .filter(Boolean);
+    // eventos por estado (sin no efectiva / negociación a futuro)
+    const estadoItems = leadsFiltrados
+      .filter(l => !['no_efectiva', 'negociacion_futuro'].includes(l.estado))
+      .slice(0, 16)
+      .map(leadToTick);
+    return [...slaItems, ...estadoItems];
+  }, [leadsFiltrados, fetchedAt]);
+
+  const breakdownViews = useMemo(() => {
+    // Por estado
+    const estado = STATUS_ORDER.map(key => {
+      const m = statusMeta(key);
+      return { key, label: m.label, color: m.cvar, n: leadsFiltrados.filter(l => l.estado === key).length };
+    });
+    // Por canal
+    const canalMap = new Map();
+    leadsFiltrados.forEach(l => {
+      const k = (l.canal || 'Sin canal');
+      canalMap.set(k, (canalMap.get(k) || 0) + 1);
+    });
+    const canal = [...canalMap.entries()]
+      .map(([k, n]) => ({ key: k, label: k, color: canalMeta(k).color, icon: canalMeta(k).icon, n }))
+      .sort((a, b) => b.n - a.n);
+    // Por tipo
+    const tipoMap = new Map();
+    leadsFiltrados.forEach(l => {
+      const k = (l.tipo || 'General');
+      tipoMap.set(k, (tipoMap.get(k) || 0) + 1);
+    });
+    const tipo = [...tipoMap.entries()]
+      .map(([k, n], i) => ({ key: k, label: k, color: TIPO_PALETTE[i % TIPO_PALETTE.length], n }))
+      .sort((a, b) => b.n - a.n);
+
+    return [
+      { id: 'estado', title: 'Por estado', icon: 'funnel', data: estado },
+      { id: 'canal', title: 'Por canal', icon: 'globe', data: canal },
+      { id: 'tipo', title: 'Por tipo', icon: 'layers', data: tipo },
+    ];
+  }, [leadsFiltrados]);
+
+  // ── Ranking de vendedores (desde leads filtrados) ──
+  const ranking = useMemo(() => {
+    const byV = new Map();
+    leadsFiltrados.forEach(l => {
+      const name = l.vendedor_nombre;
+      if (!name) return;
+      if (!byV.has(name)) byV.set(name, { name, ventas: 0, leads: 0, ok: 0, total: 0 });
+      const v = byV.get(name);
+      v.leads++;
+      if (l.estado === 'venta_efectiva') v.ventas++;
+      let t;
+      if (l.ts_primera_respuesta) t = parseFloat(l.min_primera_respuesta) || 0;
+      else if (l._socketAt != null) t = businessMinutesSince(l._socketAt);
+      else if (l.min_esperando_respuesta != null) t = parseFloat(l.min_esperando_respuesta) + businessMinutesSince(fetchedAt);
+      else t = 0;
+      v.total++;
+      if (t <= 20) v.ok++;
+    });
+    return [...byV.values()]
+      .map(v => ({ id: v.name, name: v.name, ventas: v.ventas, leads: v.leads, sla: v.total ? Math.round(v.ok / v.total * 100) : 0 }))
+      .sort((a, b) => b.ventas - a.ventas || b.leads - a.leads)
+      .slice(0, 6);
+  }, [leadsFiltrados, fetchedAt]);
+
+  const detalleLeads = useMemo(() => {
+    const q = detalleQuery.trim().toLowerCase();
+    if (!q) return leadsFiltrados;
+    return leadsFiltrados.filter(r =>
+      (r.nombre || '').toLowerCase().includes(q) ||
+      String(r.id).includes(q) ||
+      (r.requerimiento || '').toLowerCase().includes(q) ||
+      (r.vendedor_nombre || '').toLowerCase().includes(q) ||
+      (r.canal || '').toLowerCase().includes(q));
+  }, [leadsFiltrados, detalleQuery]);
+
+  const fechaLabel = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-main)', overflow: 'hidden' }}>
+    <div className="app">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {showVendedores && <ModalVendedores onClose={() => setShowVendedores(false)} />}
 
-      {/* Sidebar colapsable (estilo Front-CRM) */}
-      <aside className="sidebar-dark" style={{
-        width: collapsed ? 62 : 240, transition: 'width 0.25s ease',
-        background: '#1e2a3b', display: 'flex', flexDirection: 'column',
-        flexShrink: 0, overflow: 'hidden', zIndex: 10,
-      }}>
-        {/* Logo */}
-        <div style={{
-          padding: collapsed ? '16px 0' : '16px 20px',
-          borderBottom: '1px solid #2d3d52',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 64,
-        }}>
-          {collapsed
-            ? <img src="https://comutelperu.com/correo-cm/Logo/ISO%20BLANCO.png" alt="Comutel" style={{ width: 36, display: 'block' }} />
-            : <div style={{ width: '100%' }}>
-              <img src="https://comutelperu.com/correo-cm/Logo/LOGO-BLANCO.png" alt="Comutel" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
-              <div style={{ color: '#8899aa', fontSize: 11, marginTop: 6 }}>Vantio Leads</div>
-            </div>
-          }
-        </div>
+      <Topbar
+        conectado={conectado}
+        enHorarioHabil={enHorarioHabil}
+        theme={theme}
+        onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+        isAdmin={isAdmin}
+        onAdminClick={onAdminClick}
+        onLogout={onLogout}
+        onToggleFilters={() => setFiltersOpen(o => !o)}
+        filtersOpen={filtersOpen}
+        onForceReload={handleForceReload}
+        onTestGlobal={handleTestGlobal}
+        onTestAlert={handleTestAlert}
+        onShowVendedores={() => setShowVendedores(true)}
+        onFullscreen={toggleFullscreen}
+      />
 
-        {/* Navegación */}
-        <nav style={{ padding: collapsed ? '12px 0' : '12px 12px' }}>
-          {[
-            { key: 'dashboard', label: 'Dashboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg> },
-            { key: 'detalle', label: 'Detalle Operativo', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> },
-          ].map(item => (
-            <button key={item.key} onClick={() => { setView(item.key); if (item.key === 'dashboard') cargarDatos(true); }}
-              title={collapsed ? item.label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center', width: '100%',
-                gap: collapsed ? 0 : 10,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                padding: collapsed ? '10px 0' : '9px 12px',
-                borderRadius: collapsed ? 0 : 8, marginBottom: 4,
-                color: view === item.key ? '#fff' : '#8899aa',
-                background: view === item.key ? '#2f6fd4' : 'transparent',
-                border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
-            </button>
-          ))}
-        </nav>
+      <div className={'app__body' + (filtersOpen ? '' : ' filters-closed')}>
+        <FilterSidebar
+          view={view}
+          onSetView={(v) => { setView(v); if (v === 'dashboard') cargarDatos(true); }}
+          filtroFecha={filtroFecha} setFiltroFecha={setFiltroFecha}
+          filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado}
+          filtroVendedor={filtroVendedor} setFiltroVendedor={setFiltroVendedor}
+          filtroCanal={filtroCanal} setFiltroCanal={setFiltroCanal}
+          filtroTipo={filtroTipo} setFiltroTipo={setFiltroTipo}
+          estadosUnicos={estadosUnicos} tiposUnicos={tiposUnicos}
+          vendedoresUnicos={vendedoresUnicos} canalesUnicos={canalesUnicos}
+          estadoCounts={estadoCounts} activeCount={activeFilterCount}
+          onClear={limpiarFiltros}
+        />
+        {filtersOpen && <div className="filter-scrim" onClick={() => setFiltersOpen(false)} />}
 
-        {/* Separador */}
-        <div style={{ borderTop: '1px solid #2d3d52', margin: collapsed ? '0' : '0 12px' }} />
+        <main className="main">
+          <div className="main__inner">
+            {view === 'dashboard' ? (
+              <>
+                <LiveTicker items={tickerItems} conectado={conectado} enHorarioHabil={enHorarioHabil} />
+                <KpiStrip kpis={kpis} />
 
-        {/* Filtros — solo cuando está expandido */}
-        {!collapsed && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 8px' }}>
+                <div className="grid grid--ops">
+                  <SellerRanking data={ranking} onVerTodos={isAdmin ? () => setShowVendedores(true) : undefined} />
+                  <SlaSemaphore aTiempo={aTiempo} enRiesgo={enRiesgo} atrasados={atrasados} />
+                  <CriticalLeads leads={leadsFiltrados} fetchedAt={fetchedAt} onVerDetalle={() => setView('detalle')} />
+                </div>
 
-            {/* Limpiar filtros */}
-            {(filtroEstado || filtroTipo || filtroVendedor || filtroCanal || filtroFecha !== 'mes') && (
-              <button onClick={() => { setFiltroFecha('mes'); setFiltroEstado(''); setFiltroTipo(''); setFiltroVendedor(''); setFiltroCanal(''); }}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: '100%', marginBottom: 14,
-                  padding: '6px 10px', borderRadius: 6, border: '1px solid #e74c3c44',
-                  background: '#e74c3c11', color: '#e74c3c', fontSize: 11, fontWeight: 600, cursor: 'pointer'
-                }}>
-                ✕ Limpiar filtros
-              </button>
-            )}
+                <div className="grid grid--analysis">
+                  <TemporalChart series={series} titulo="Evolución del período" subtitulo={filtroFecha === 'dia' ? 'leads · ventas por hora' : 'leads · ventas por día'} />
+                  <Breakdown views={breakdownViews} />
+                </div>
 
-            {/* Período */}
-            <FilterGroup label="Período">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                {FILTROS_FECHA.map(f => (
-                  <button key={f.value} onClick={() => setFiltroFecha(f.value)} style={{
-                    padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 600, textAlign: 'center', transition: 'all 0.15s',
-                    background: filtroFecha === f.value ? '#2f6fd4' : '#253347',
-                    color: filtroFecha === f.value ? '#fff' : '#6b84a0',
-                  }}>{f.label}</button>
-                ))}
-              </div>
-            </FilterGroup>
-
-            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
-
-            {/* Estado */}
-            <FilterGroup label="Estado" defaultOpen={false} badge={filtroEstado ? 1 : null}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                <button onClick={() => setFiltroEstado('')} style={{
-                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
-                  transition: 'all 0.15s',
-                  background: filtroEstado === '' ? '#2f6fd4' : '#253347',
-                  color: filtroEstado === '' ? '#fff' : '#6b84a0',
-                }}>Todos</button>
-                {estadosUnicos.map(e => {
-                  const active = filtroEstado === e;
-                  const col = ESTADO_COLORS[e] || '#2f6fd4';
-                  return (
-                    <button key={e} onClick={() => setFiltroEstado(e)} style={{
-                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 600, textAlign: 'center', transition: 'all 0.15s',
-                      background: active ? col : '#253347',
-                      color: active ? '#fff' : '#6b84a0',
-                    }}>{ESTADO_LABELS[e] || e}</button>
-                  );
-                })}
-              </div>
-            </FilterGroup>
-
-            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
-
-            {/* Categoría */}
-            <FilterGroup label="Categoría" defaultOpen={false} badge={filtroTipo ? 1 : null}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                <button onClick={() => setFiltroTipo('')} style={{
-                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
-                  transition: 'all 0.15s',
-                  background: filtroTipo === '' ? '#2f6fd4' : '#253347',
-                  color: filtroTipo === '' ? '#fff' : '#6b84a0',
-                }}>Todas</button>
-                {tiposUnicos.map(t => (
-                  <button key={t} onClick={() => setFiltroTipo(t)} style={{
-                    padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 600, textAlign: 'center',
-                    textTransform: 'capitalize', transition: 'all 0.15s',
-                    background: filtroTipo === t ? '#2f6fd4' : '#253347',
-                    color: filtroTipo === t ? '#fff' : '#6b84a0',
-                  }}>{t}</button>
-                ))}
-              </div>
-            </FilterGroup>
-
-            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
-
-            {/* Canal */}
-            <FilterGroup label="Canal" defaultOpen={false} badge={filtroCanal ? 1 : null}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                <button onClick={() => setFiltroCanal('')} style={{
-                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
-                  transition: 'all 0.15s',
-                  background: filtroCanal === '' ? '#2f6fd4' : '#253347',
-                  color: filtroCanal === '' ? '#fff' : '#6b84a0',
-                }}>Todos</button>
-                {canalesUnicos.map(c => {
-                  const key = c.toLowerCase();
-                  const active = filtroCanal === c;
-                  const col = CANAL_COLORS[key] || '#2f6fd4';
-                  return (
-                    <button key={c} onClick={() => setFiltroCanal(c)} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 600, transition: 'all 0.15s',
-                      background: active ? col : '#253347',
-                      color: active ? '#fff' : '#6b84a0',
-                    }}>
-                      {CANAL_ICONS[key] && (
-                        <img src={CANAL_ICONS[key]} alt={c}
-                          style={{ width: 13, height: 13, objectFit: 'contain', flexShrink: 0,
-                            filter: active ? 'brightness(10)' : 'none', transition: 'filter 0.15s' }} />
-                      )}
-                      <span style={{ textTransform: 'capitalize' }}>{c}</span>
+                <OperativeTable
+                  rows={leadsFiltrados.slice(0, 5)} showSearch={false} totalCount={leadsFiltrados.length}
+                  fetchedAt={fetchedAt} isAdmin={isAdmin} newIds={newIds}
+                  onVerDetalle={() => setView('detalle')}
+                  onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))}
+                />
+              </>
+            ) : (
+              <div className="card">
+                <div className="card__head">
+                  <span className="card__title"><Icon name="layers" size={17} /> Detalle operativo</span>
+                  <div className="card__tools">
+                    <button className="card__link" onClick={() => { setView('dashboard'); cargarDatos(true); }}>
+                      <Icon name="arrowRight" size={13} style={{ transform: 'rotate(180deg)' }} /> Volver al dashboard
                     </button>
-                  );
-                })}
-              </div>
-            </FilterGroup>
-
-            <div style={{ borderTop: '1px solid #1e2d3e', margin: '10px 0' }} />
-
-            {/* Vendedor */}
-            <FilterGroup label="Vendedor" defaultOpen={false} badge={filtroVendedor ? 1 : null}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                <button onClick={() => setFiltroVendedor('')} style={{
-                  gridColumn: '1 / -1', padding: '7px 4px', borderRadius: 6, border: 'none',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'center',
-                  transition: 'all 0.15s',
-                  background: filtroVendedor === '' ? '#2f6fd4' : '#253347',
-                  color: filtroVendedor === '' ? '#fff' : '#6b84a0',
-                }}>Todos</button>
-                {vendedoresUnicos.map(v => {
-                  const active = filtroVendedor === v;
-                  const hue = v.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
-                  const firstName = v.split(' ')[0];
-                  return (
-                    <button key={v} onClick={() => setFiltroVendedor(v)} style={{
-                      padding: '7px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 600, textAlign: 'center',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      transition: 'all 0.15s',
-                      background: active ? `hsl(${hue},55%,38%)` : '#253347',
-                      color: active ? '#fff' : '#6b84a0',
-                    }}>{firstName}</button>
-                  );
-                })}
-              </div>
-            </FilterGroup>
-
-          </div>
-        )}
-
-        {/* Spacer cuando colapsado */}
-        {collapsed && <div style={{ flex: 1 }} />}
-
-        {/* Links externos */}
-        <div style={{ borderTop: '1px solid #2d3d52', padding: collapsed ? '8px 0' : '8px 12px' }}>
-          {[
-            { href: `http://192.168.1.51:5175`, label: 'Vantio Planner', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
-            { href: 'http://192.168.1.50', label: 'GLPI CM', icon: 'https://comutelperu.com/correo-cm/Iconos/10156352.png' },
-            { href: 'https://store.comutelperu.com/web#cids=1&action=menu', label: 'Odoo', icon: 'https://comutelperu.com/correo-cm/Iconos/odoo.png' },
-          ].map(({ href, label, icon }) => (
-            <a key={href} href={href} target="_blank" rel="noreferrer"
-              title={collapsed ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: collapsed ? 0 : 10,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                padding: collapsed ? '10px 0' : '9px 12px',
-                borderRadius: collapsed ? 0 : 8,
-                marginBottom: 4,
-                color: '#8899aa', textDecoration: 'none', fontSize: 13, fontWeight: 500,
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={e => e.currentTarget.style.color = '#8899aa'}
-            >
-              <img src={icon} alt={label} style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />
-              {!collapsed && <span>{label}</span>}
-            </a>
-          ))}
-        </div>
-
-        {/* Botón contraer */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Expandir menú' : 'Contraer menú'}
-          style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 8, padding: collapsed ? '14px 0' : '14px 20px',
-            background: 'none', border: 'none',
-            borderTop: '1px solid #2d3d52',
-            color: '#8899aa', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-            width: '100%', transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-          onMouseLeave={e => e.currentTarget.style.color = '#8899aa'}
-        >
-          <span style={{ fontSize: 16 }}>{collapsed ? '»' : '«'}</span>
-          {!collapsed && <span>Contraer menú</span>}
-        </button>
-      </aside>
-
-      {/* Contenido Principal Derecho */}
-      <div style={{ flex: 1, overflow: view === 'detalle' ? 'hidden' : 'auto', padding: '24px 40px', display: 'flex', flexDirection: 'column', position: 'relative', minHeight: 0 }}>
-
-        {isLoading && (
-          <div style={{
-            position: 'absolute', inset: 0, background: 'var(--bg-main)', opacity: 0.7,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20
-          }}>
-            <div className="spinner" />
-          </div>
-        )}
-
-        {/* Topbar: título + breadcrumb + controles */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-              Gestión de Leads
-            </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, fontWeight: 500, textTransform: 'capitalize' }}>
-              {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} - {currentTime.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-
-            {/* Search Bar Visual -> Trimestres */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: 'var(--bg-card)', border: '1px solid var(--border)',
-              borderRadius: 6, padding: '4px', fontSize: 13,
-            }}>
-              {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => {
-                const isCurrent = (i + 1) === (Math.floor(currentTime.getMonth() / 3) + 1);
-                return (
-                  <button key={q} style={{
-                    background: isCurrent ? 'var(--accent)' : 'transparent',
-                    border: 'none', borderRadius: 4, cursor: 'pointer',
-                    padding: '4px 12px', color: isCurrent ? '#fff' : 'var(--text-main)',
-                    fontWeight: 600, fontSize: 12,
-                    animation: isCurrent ? 'pulse 2s infinite' : 'none',
-                    boxShadow: isCurrent ? '0 2px 8px var(--accent-glow)' : 'none',
-                    transition: 'all 0.3s'
-                  }}>
-                    {q}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Administrar Vendedores y Probar Alertas (Solo Admin) */}
-            {isAdmin && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button
-                  onClick={() => {
-                    if (confirm('¿Forzar recarga de dashboard en todos los clientes conectados?')) {
-                      emitForceReload();
-                    }
-                  }}
-                  title="Forzar Ctrl+Shift+R en todos los clientes conectados"
-                  style={{
-                    padding: '6px 10px', borderRadius: 6, border: '1px solid #f59e0b55',
-                    background: '#f59e0b18', color: '#f59e0b',
-                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', gap: 5,
-                  }}
-                >
-                  🔄 Recargar Todos
-                </button>
-                <div ref={testMenuRef} style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowTestMenu(v => !v)}
-                    title="Prueba de audio global — todos los clientes escuchan"
-                    style={{
-                      padding: '6px 10px', borderRadius: 6, border: '1px solid #10b98155',
-                      background: showTestMenu ? '#10b98130' : '#10b98118', color: '#10b981',
-                      cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    🌐 Test Global
-                  </button>
-                  {showTestMenu && (
-                    <div style={{
-                      position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                      background: 'var(--bg-card)', border: '1px solid var(--border)',
-                      borderRadius: 10, padding: 6, zIndex: 100,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                      display: 'flex', flexDirection: 'column', gap: 3, minWidth: 190,
-                    }}>
-                      {[
-                        { tipo: 'nuevo_lead', label: '🟢 Nuevo Lead',       color: '#38bdf8', play: () => playNuevoLead('') },
-                        { tipo: 'sla',        label: '⚠️ Alerta SLA',       color: '#f59e0b', play: () => playAlertaSLA() },
-                        { tipo: 'venta',      label: '🎉 Venta Efectiva',    color: '#10b981', play: () => playVentaEfectiva() },
-                        { tipo: 'inicio',     label: '☀️ Inicio de Jornada', color: '#a78bfa', play: () => playInicioJornada() },
-                        { tipo: 'fin',        label: '🌙 Fin de Jornada',    color: '#6b7280', play: () => playFinJornada() },
-                      ].map(({ tipo, label, color, play }) => (
-                        <button key={tipo} onClick={() => { play(); emitTestAudio(tipo); setShowTestMenu(false); }} style={{
-                          padding: '8px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                          background: 'transparent', color: 'var(--text-main)',
-                          fontSize: 13, fontWeight: 600, textAlign: 'left',
-                          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.15s',
-                        }}
-                          onMouseEnter={e => e.currentTarget.style.background = color + '22'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    playAlertaSLA();
-                    addToast("⚠️ Probando alerta crítica de SLA", "error");
-
-                    setTimeout(() => {
-                      playNuevoLead('Erimay');
-                      addToast("🔊 Probando alerta lead: Erimay", "info");
-                    }, 1500);
-
-                    setTimeout(() => {
-                      playNuevoLead('Sthefania');
-                      addToast("🔊 Probando alerta lead: Sthefania", "info");
-                    }, 3000);
-
-                    setTimeout(() => {
-                      playNuevoLead('Estefany');
-                      addToast("🔊 Probando alerta lead: Estefany", "info");
-                    }, 4500);
-
-                    setTimeout(() => {
-                      playNuevoLead('Otro');
-                      addToast("🔊 Probando alerta lead genérico (beep)", "info");
-                    }, 6000);
-
-                    setTimeout(() => {
-                      playVentaEfectiva();
-                      addToast("🎉 ¡Probando celebración de venta!", "success");
-                      const duration = 2500;
-                      const end = Date.now() + duration;
-                      const colors = ['#27AE60', '#F1C40F', '#E74C3C', '#3498DB', '#9B59B6'];
-                      (function frame() {
-                        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors });
-                        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors });
-                        if (Date.now() < end) requestAnimationFrame(frame);
-                      })();
-                    }, 7500);
-
-                    setTimeout(() => {
-                      playInicioJornada();
-                      addToast("🟢 Probando: Inicio de jornada laboral 💪", "success");
-                    }, 10500);
-
-                    setTimeout(() => {
-                      playFinJornada();
-                      addToast("🔴 Probando: Fin de jornada laboral 🌙", "info");
-                    }, 12500);
-                  }}
-                  title="Probar sonidos y alertas"
-                  style={{
-                    padding: '6px 10px', borderRadius: 6, border: '1px solid var(--accent-border)',
-                    background: 'var(--bg-card)', color: 'var(--accent)',
-                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                    display: 'flex', alignItems: 'center'
-                  }}
-                >
-                  🔊 Test
-                </button>
-                <button
-                  onClick={() => setShowVendedores(true)}
-                  title="Gestionar vendedores"
-                  style={{
-                    padding: '6px 12px', borderRadius: 6, border: '1px solid var(--accent-border)',
-                    background: 'var(--accent-glow)', color: 'var(--accent)',
-                    cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                    display: 'flex', alignItems: 'center'
-                  }}
-                >
-                  👥
-                </button>
+                <div className="table-toolbar">
+                  <div className="search">
+                    <Icon name="search" size={15} />
+                    <input placeholder="Buscar lead, cliente, vendedor…" value={detalleQuery} onChange={e => setDetalleQuery(e.target.value)} />
+                  </div>
+                  <span className="pillcount"><b>{detalleLeads.length}</b> de {leadsFiltrados.length} leads</span>
+                </div>
+                <div className="card__body" style={{ paddingTop: 0 }}>
+                  <div className="tablewrap">
+                    <TablaLeads
+                      leads={detalleLeads} fetchedAt={fetchedAt} tecnicos={tecnicos} vendedores={vendedores}
+                      onActualizar={() => cargarDatos(true)}
+                      onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))}
+                      isAdmin={isAdmin}
+                    />
+                  </div>
+                </div>
               </div>
             )}
+          </div>
 
-            {/* Theme Toggle */}
-            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={{
-              background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-dim)',
-              cursor: 'pointer', padding: '6px 10px', borderRadius: 6, fontSize: 16, display: 'flex', alignItems: 'center'
-            }}>
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
-
-            {/* Login / Exportar estilo */}
-            
-            {/* En vivo / Nuevo Lead Verde */}
+          {isLoading && (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700,
-              color: '#fff',
-              background: !conectado ? 'var(--danger)' : enHorarioHabil ? 'var(--accent)' : '#92400E',
-              padding: '7px 16px', borderRadius: 6, cursor: 'default'
+              position: 'fixed', inset: 'var(--topbar-h) 0 0 0', background: 'color-mix(in srgb, var(--bg) 70%, transparent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
             }}>
-              <span style={{
-                width: 6, height: 6, borderRadius: '50%', background: 'currentColor',
-                display: 'inline-block', animation: conectado && enHorarioHabil ? 'pulse 2s infinite' : 'none'
-              }} />
-              {!conectado ? 'Desconectado' : enHorarioHabil ? 'En Vivo' : 'Fuera de horario'}
+              <div className="spinner" />
             </div>
-
-            <button
-              onClick={isAdmin ? onLogout : onAdminClick}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
-                background: 'var(--bg-card)', color: 'var(--text-dim)',
-                cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              }}
-            >
-              <span style={{ fontSize: 12 }}>{isAdmin ? '🔓' : '🔒'}</span>
-              {isAdmin ? 'Desconectar' : ''}
-            </button>
-
-            {/* Fullscreen con color del Sidebar */}
-            <button onClick={toggleFullscreen} style={{
-              background: '#1e2a3b', color: '#f7fafcff', border: '1px solid var(--border)',
-              padding: '7px 11px', borderRadius: 6, cursor: 'pointer',
-              fontWeight: 800, fontSize: 16
-            }}>
-              ⛶
-            </button>
-          </div>
-        </div>
-
-        {view === 'dashboard' ? (
-          <>
-            {/* KPI Grid (5 cols) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 20, marginBottom: 24 }}>
-              <TarjetaMetrica
-                titulo="Leads Nuevos"
-                valor={activos}
-                accentColor="#38bdf8"
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>}
-
-                delta={12}
-                deltaLabel="vs ayer"
-              />
-              <TarjetaMetrica
-                titulo="En Atención"
-                valor={leadsFiltrados.filter(l => l.estado === 'en_atencion').length}
-                accentColor="#A78BFA"
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>}
-
-                delta={5}
-                deltaLabel="vs ayer"
-              />
-              <TarjetaMetrica
-                titulo="A Tiempo"
-                valor={aTiempo}
-                accentColor="#10b981"
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-
-                delta={8}
-                deltaLabel="vs semana"
-              />
-              <TarjetaMetrica
-                titulo="Atrasados"
-                valor={atrasados}
-                accentColor="#F43F5E"
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>}
-
-                delta={-3}
-                deltaLabel="vs ayer"
-              />
-              <TarjetaMetrica
-                titulo="Leads Cerrados"
-                valor={cerrados}
-                accentColor="#9CA3AF"
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-
-                delta={6}
-                deltaLabel="vs semana"
-              />
-            </div>
-
-            {/* Charts Row 1: SLA por Vendedor + SLA Atendido + Por Estado */}
-
-
-
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA Atendido (%)</div>
-                <div style={{ width: '100%', height: 130 }}>
-                  <GraficoSLA key={refreshKey} atendidos={slaCumplidos} enRiesgo={enRiesgo} total={total} />
-                </div>
-              </div>
-              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>SLA por Vendedor</div>
-                <DashboardTecnicos key={refreshKey} leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} />
-              </div>
-              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Por Estado</div>
-                <GraficoEstados key={refreshKey} leads={leadsFiltrados} />
-              </div>
-            </div>
-
-            {/* Charts Row 2: Resumen SLA (izq) + Por Tipo / Por Canal (der) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Resumen SLA</div>
-                <TablaResumen leads={leadsFiltrados.slice(0, 3)} fetchedAt={fetchedAt} />
-              </div>
-              <div className="card card-shimmer" style={{ padding: '14px 18px' }}>
-                <GraficoBarrasTop key={refreshKey} dataTipo={dataMotivos} dataCanal={dataCanales} colorTipo="#6366f1" />
-              </div>
-            </div>
-
-            {/* Evolución Temporal (movida abajo) */}
-            <div className="card card-shimmer" style={{ padding: '14px 18px', marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Evolución Temporal de Leads</div>
-              <div style={{ width: '100%', height: 220 }}>
-                <GraficoTiempo key={refreshKey} leads={leadsFiltrados} filtroFecha={filtroFecha} />
-              </div>
-            </div>
-
-            {/* Listado / Tabla (limitado a 5) */}
-            <div className="card" style={{ padding: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>Detalle Operativo</div>
-                <button onClick={() => setView('detalle')} style={{
-                  background: 'none', border: 'none', color: 'var(--filter-active)',
-                  cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                }}>
-                  Ver todo ({leadsFiltrados.length}) →
-                </button>
-              </div>
-              <TablaLeads leads={leadsFiltrados.slice(0, 3)} fetchedAt={fetchedAt} tecnicos={tecnicos} vendedores={vendedores} onActualizar={() => cargarDatos(true)} onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))} isAdmin={isAdmin} />
-            </div>
-          </>
-        ) : (
-          /* Vista Detalle Operativo completa */
-          <div className="card" style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>Detalle Operativo — {leadsFiltrados.length} leads</div>
-              <button onClick={() => { setView('dashboard'); cargarDatos(true); }} style={{
-                background: 'none', border: 'none', color: 'var(--filter-active)',
-                cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              }}>
-                ← Volver al Dashboard
-              </button>
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-              <TablaLeads leads={leadsFiltrados} fetchedAt={fetchedAt} tecnicos={tecnicos} vendedores={vendedores} onActualizar={() => cargarDatos(true)} onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))} isAdmin={isAdmin} />
-            </div>
-          </div>
-        )}
-
+          )}
+        </main>
       </div>
     </div>
   );
