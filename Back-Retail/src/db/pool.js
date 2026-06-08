@@ -17,10 +17,10 @@ const pool = new Pool({
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    options: '-c timezone=America/Lima',
 });
 
-pool.on('connect', (client) => {
-    client.query("SET timezone = 'America/Lima'");
+pool.on('connect', () => {
     console.log('[DB] Conectado a PostgreSQL');
 });
 pool.on('error', (err) => console.error('[DB] Error:', err));
