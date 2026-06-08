@@ -3,13 +3,17 @@ import { Icon } from './Icon';
 import { initials, avatarColor } from '../utils/domain';
 
 function slaTone(sla) {
-  if (sla >= 90) return 'ok';
-  if (sla >= 75) return 'warn';
+  if (sla >= 70) return 'ok';
+  if (sla >= 51) return 'warn';
   return 'danger';
 }
 
 export default function SellerRanking({ data, onVerTodos }) {
   const rows = data || [];
+  const counts = rows.reduce((acc, r) => {
+    acc[slaTone(r.sla)]++;
+    return acc;
+  }, { ok: 0, warn: 0, danger: 0 });
 
   return (
     <div className="card">
@@ -23,6 +27,13 @@ export default function SellerRanking({ data, onVerTodos }) {
       </div>
       <div className="card__body" style={{ paddingTop: 4 }}>
         {rows.length === 0 && <div className="crit-empty">Sin datos de vendedores</div>}
+        {rows.length > 0 && (
+          <div className="rank-sla-legend">
+            <span className="rank-sla-legend__item rank-sla-legend__item--ok"><i />{counts.ok} en verde</span>
+            <span className="rank-sla-legend__item rank-sla-legend__item--warn"><i />{counts.warn} en amarillo</span>
+            <span className="rank-sla-legend__item rank-sla-legend__item--danger"><i />{counts.danger} en rojo</span>
+          </div>
+        )}
         <div className="ranking">
           {rows.map((r, i) => {
             const tone = slaTone(r.sla);

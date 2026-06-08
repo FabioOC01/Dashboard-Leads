@@ -1,4 +1,5 @@
 /* OperativeTable.jsx — tabla operativa compacta del dashboard */
+import { useEffect, useState } from 'react';
 import { Icon } from './Icon';
 import { deleteLead } from '../api/leads';
 import {
@@ -15,6 +16,12 @@ function fmtMin(m) {
 }
 
 export default function OperativeTable({ rows, query, setQuery, fetchedAt, isAdmin, newIds, onVerDetalle, onVer, onEliminar, showSearch = true, totalCount }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(k => k + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const list = rows || [];
   const q = (query || '').toLowerCase();
   const filtered = showSearch
