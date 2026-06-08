@@ -540,6 +540,12 @@ button { font-family: inherit; cursor: pointer; }
    RANKING VENDEDORES
    ========================================================= */
 .ranking { display: flex; flex-direction: column; }
+.rank-sla-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 2px 4px 12px; }
+.rank-sla-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.rank-sla-legend__item i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.rank-sla-legend__item--ok i { background: var(--ok); }
+.rank-sla-legend__item--warn i { background: var(--warn); }
+.rank-sla-legend__item--danger i { background: var(--danger); }
 .rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border); min-width: 0; }
 .rank-row:last-child { border-bottom: none; }
 .rank-pos { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 13px; color: var(--ink-3); text-align: center; }
