@@ -7,7 +7,8 @@ CREATE TABLE vendedores (
   email       VARCHAR(100),
   whatsapp    VARCHAR(20),
   activo      BOOLEAN DEFAULT true,
-  creado_en   TIMESTAMP DEFAULT NOW()
+  creado_en   TIMESTAMP DEFAULT NOW(),
+  foto_url    TEXT
 );
 
 -- =============================================
