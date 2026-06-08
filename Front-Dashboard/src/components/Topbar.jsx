@@ -83,15 +83,15 @@ export default function Topbar({
       {isAdmin && (
         <div className="topbar__center" style={{ gap: 6 }}>
           <button className="btn btn--warn btn--sm" onClick={onTestAlert} title="Probar alertas y sonidos localmente">
-            <Icon name="alert" size={15} /> Probar
+            <Icon name="alert" size={15} /> <span className="btn__lbl">Probar</span>
           </button>
           <button className="btn btn--ghost btn--sm" onClick={onForceReload} title="Forzar recarga en todos los clientes">
-            <Icon name="refresh" size={15} /> Recargar todos
+            <Icon name="refresh" size={15} /> <span className="btn__lbl">Recargar todos</span>
           </button>
           <div ref={testRef} style={{ position: 'relative' }}>
             <button className={'btn btn--sm ' + (testOpen ? 'btn--primary' : 'btn--ghost')}
               onClick={() => setTestOpen(o => !o)} title="Test de audio global (todos los clientes)">
-              <Icon name="globe" size={15} /> Test global
+              <Icon name="globe" size={15} /> <span className="btn__lbl">Test global</span>
             </button>
             {testOpen && (
               <div className="menu-pop">
