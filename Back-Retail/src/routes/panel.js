@@ -3,6 +3,13 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const ctrl = require('../controllers/webhookController');
 
+// Escape de HTML para evitar XSS al interpolar datos del lead en la plantilla
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+// Serializa un valor para incrustarlo de forma segura dentro de <script>
+const jsLiteral = (v) => JSON.stringify(v ?? '').replace(/</g, '\\u003c');
+
 // Página del panel para el vendedor
 router.get('/:contact_id', async (req, res) => {
     const { contact_id } = req.params;
@@ -29,7 +36,7 @@ router.get('/:contact_id', async (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Lead — ${lead.nombre}</title>
+        <title>Lead — ${esc(lead.nombre)}</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
@@ -57,14 +64,14 @@ router.get('/:contact_id', async (req, res) => {
       </head>
       <body>
         <div class="card">
-          <h2>${lead.nombre}</h2>
-          <p><span class="label">Celular:</span> ${lead.celular}</p>
-          <p><span class="label">Requerimiento:</span> ${lead.requerimiento || '—'}</p>
-          <p><span class="label">Canal:</span> ${lead.canal || '—'}</p>
-          <p><span class="label">Campaña:</span> ${lead.campana || '—'}</p>
-          <p><span class="label">Vendedor:</span> ${lead.vendedor_nombre || '—'}</p>
+          <h2>${esc(lead.nombre)}</h2>
+          <p><span class="label">Celular:</span> ${esc(lead.celular)}</p>
+          <p><span class="label">Requerimiento:</span> ${esc(lead.requerimiento || '—')}</p>
+          <p><span class="label">Canal:</span> ${esc(lead.canal || '—')}</p>
+          <p><span class="label">Campaña:</span> ${esc(lead.campana || '—')}</p>
+          <p><span class="label">Vendedor:</span> ${esc(lead.vendedor_nombre || '—')}</p>
           <p><span class="label">Estado:</span>
-            <span class="estado ${lead.estado}">${lead.estado.replace(/_/g, ' ')}</span>
+            <span class="estado ${esc(lead.estado)}">${esc(String(lead.estado).replace(/_/g, ' '))}</span>
           </p>
         </div>
 
@@ -97,9 +104,9 @@ router.get('/:contact_id', async (req, res) => {
         </div>
 
         <script>
-          const leadId = ${lead.id};
-          const vendedorId = ${lead.vendedor_id || 'null'};
-          const contactId = '${lead.sendpulse_contact_id}';
+          const leadId = ${Number(lead.id)};
+          const vendedorId = ${lead.vendedor_id ? Number(lead.vendedor_id) : 'null'};
+          const contactId = ${jsLiteral(lead.sendpulse_contact_id)};
 
           async function accion(tipo) {
             const endpoints = {

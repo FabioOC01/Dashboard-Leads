@@ -9,20 +9,26 @@ const rateLimit = require('express-rate-limit');
 const webhookRoutes = require('./routes/webhook');
 const leadsRoutes = require('./routes/leads');
 const vendedoresRoutes = require('./routes/vendedores');
+const authRoutes = require('./routes/auth');
 const initSocket = require('./socket');
 const cronJobs = require('./jobs/cronJobs');
 const panelRoutes = require('./routes/panel');
 
+// Orígenes permitidos para CORS. Si CORS_ORIGINS no está definido, se permite todo
+// (compatibilidad). Define CORS_ORIGINS="https://dash.tu-dominio,http://192.168.x.x:5173" para restringir.
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+const corsOrigin = allowedOrigins.length ? allowedOrigins : true;
 
 const app = express();
 app.set('trust proxy', 1); // Soluciona error de express-rate-limit con SendPulse/Ngrok
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: { origin: corsOrigin }
 });
 
 // Middlewares globales
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 // Rate limiting solo en webhooks
@@ -37,6 +43,7 @@ app.use((req, res, next) => { req.io = io; next(); });
 
 // Rutas
 app.use('/webhook', webhookLimiter, webhookRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/vendedores', vendedoresRoutes);
 app.use('/panel', panelRoutes);

@@ -49,7 +49,7 @@ exports.getLeads = async (req, res) => {
       LEFT JOIN vendedores t ON t.id = l.tecnico_id
       WHERE l.estado NOT IN ('venta_efectiva', 'no_efectiva')
          OR $1::date IS NULL
-         OR l.ts_lead_creado >= $1::date
+         OR COALESCE(l.ts_efectivo, l.ts_lead_creado) >= $1::date
       ORDER BY l.ts_lead_creado DESC
     `, [desde || null]);
         res.json(rows);
