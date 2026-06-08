@@ -675,8 +675,8 @@ button { font-family: inherit; cursor: pointer; }
 /* =========================================================
    TEMPORAL CHART
    ========================================================= */
-.chart { width: 100%; }
-.chart svg { width: 100%; height: clamp(200px, 30vh, 320px); display: block; overflow: visible; }
+.chart { width: 100%; flex: 1; min-height: 200px; display: flex; }
+.chart svg { display: block; overflow: visible; }
 .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
 .chart-legend i { width: 11px; height: 3px; border-radius: 2px; }
@@ -752,13 +752,43 @@ button { font-family: inherit; cursor: pointer; }
   .grid--main,
   .grid--analysis { grid-template-columns: 1fr; }
 }
+/* ---- Topbar responsive ---- */
+.topbar__userlogo { margin-left: 4px; }
+@media (max-width: 1280px) {
+  .topbar { gap: 12px; }
+  .topbar__userlogo { display: none; }      /* logo grande de la derecha */
+}
+@media (max-width: 1080px) {
+  /* botones de admin en modo solo-icono */
+  .topbar .btn__lbl { display: none; }
+  .topbar .btn--sm { padding: 0 9px; }
+  .qseg { display: none; }                   /* selector de trimestre (decorativo) */
+}
+@media (max-width: 860px) {
+  .topbar { gap: 8px; padding: 0 10px; }
+  .topbar__tag, .topbar__divider { display: none; }
+  .clock { display: none; }
+}
+
 @media (max-width: 720px) {
   .grid--kpi,
   .grid--ops { grid-template-columns: 1fr; }
   .grid--ops > .card:last-child { grid-column: auto; }
-  .topbar__brand { min-width: 0; }
-  .topbar__tag, .user__name, .user__role { display: none; }
-  .clock__zone { display: none; }
+}
+/* ---- Pantallas grandes: mismo orden y columnas, sólo más amplio y legible ---- */
+@media (min-width: 1700px) {
+  .main__inner { max-width: 2400px; }
+  /* escala la densidad "balanced" hacia "comfortable" en monitores anchos */
+  [data-density="balanced"] {
+    --gap: 18px; --pad-card: 20px; --row-h: 46px; --fs-base: 15px; --fs-kpi: 42px;
+  }
+  .grid--kpi { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid--ops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid--analysis { grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr); }
+}
+@media (min-width: 2300px) {
+  .main__inner { max-width: 2800px; }
+  [data-density="balanced"] { --fs-kpi: 48px; --gap: 22px; --pad-card: 24px; }
 }
 @media (min-width: 1900px) {
   [data-density="tv"] .grid--kpi { grid-template-columns: repeat(3, 1fr); }

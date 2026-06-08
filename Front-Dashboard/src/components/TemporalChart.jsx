@@ -1,4 +1,5 @@
-/* TemporalChart.jsx — evolución de leads / ventas / vencimientos */
+/* TemporalChart.jsx — evolución de leads / ventas / vencimientos (SVG responsivo) */
+import { useRef, useState, useEffect } from 'react';
 import { Icon } from './Icon';
 
 export default function TemporalChart({ series, titulo = 'Evolución temporal', subtitulo = 'leads · ventas · vencimientos' }) {
@@ -8,7 +9,21 @@ export default function TemporalChart({ series, titulo = 'Evolución temporal', 
   const breach = series?.breach || [];
   const n = labels.length;
 
-  const W = 760, H = 230, pad = { l: 30, r: 14, t: 16, b: 28 };
+  // Medir el contenedor para dibujar el SVG a su tamaño real (llena la tarjeta sin distorsión)
+  const ref = useRef(null);
+  const [size, setSize] = useState({ w: 600, h: 240 });
+  useEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(([e]) => {
+      const { width, height } = e.contentRect;
+      setSize({ w: Math.max(120, width), h: Math.max(120, height) });
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w: W, h: H } = size;
+  const pad = { l: 28, r: 14, t: 14, b: 26 };
   const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
   const maxL = Math.max(1, ...leads) * 1.15;
   const maxV = Math.max(1, ...ventas);
@@ -25,12 +40,12 @@ export default function TemporalChart({ series, titulo = 'Evolución temporal', 
         <span className="card__title"><Icon name="pulse" size={17} /> {titulo}</span>
         <div className="card__tools"><span className="card__sub">{subtitulo}</span></div>
       </div>
-      <div className="card__body">
-        <div className="chart">
+      <div className="card__body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div className="chart" ref={ref}>
           {n === 0 ? (
             <div className="crit-empty">Sin datos en el período</div>
           ) : (
-            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
               <defs>
                 <linearGradient id="gLtemp" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
@@ -48,7 +63,7 @@ export default function TemporalChart({ series, titulo = 'Evolución temporal', 
               <path d={linePath(leads)} fill="none" stroke="var(--primary)" strokeWidth="2.5" />
               <path d={linePath(ventas.map(s => s * (maxL / maxV / 1.6)))}
                 fill="none" stroke="var(--st-venta)" strokeWidth="2.5" />
-              {leads.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2" />)}
+              {leads.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r="3.5" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2" />)}
               {labels.map((h, i) => (
                 <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--ink-3)" fontFamily="IBM Plex Mono, monospace">{h}</text>
               ))}

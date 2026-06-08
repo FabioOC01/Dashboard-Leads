@@ -58,7 +58,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   const [leads, setLeads] = useState([]);
   const [metricas, setMetricas] = useState([]);
   const [metricasTecnico, setMetricasTecnico] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState('semana');
+  const [filtroFecha, setFiltroFecha] = useState('mes');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [ultimaActualizacion, setUltima] = useState(new Date());
   const { ultimoEvento, conectado, testAudio } = useSocket();
@@ -404,11 +404,11 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   }, [leads]);
 
   const limpiarFiltros = () => {
-    setFiltroFecha('semana'); setFiltroEstado(''); setFiltroTipo(''); setFiltroVendedor(''); setFiltroCanal('');
+    setFiltroFecha('mes'); setFiltroEstado(''); setFiltroTipo(''); setFiltroVendedor(''); setFiltroCanal('');
   };
   const activeFilterCount =
     (filtroEstado ? 1 : 0) + (filtroVendedor ? 1 : 0) + (filtroCanal ? 1 : 0) +
-    (filtroTipo ? 1 : 0) + (filtroFecha !== 'semana' ? 1 : 0);
+    (filtroTipo ? 1 : 0) + (filtroFecha !== 'mes' ? 1 : 0);
 
   // ── Leads filtrados ──
   const now = new Date();
