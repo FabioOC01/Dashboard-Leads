@@ -52,6 +52,23 @@ export function avatarColor(name = '') {
   return `hsl(${hue}, 55%, 42%)`;
 }
 
+export function normalizePersonName(name = '') {
+  return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+export function getVendedorFotoUrl(leadOrSeller = {}, vendedores = []) {
+  if (leadOrSeller.vendedor_foto_url) return leadOrSeller.vendedor_foto_url;
+  if (leadOrSeller.foto_url) return leadOrSeller.foto_url;
+
+  const vendedorId = leadOrSeller.vendedor_id ?? leadOrSeller.id;
+  const byId = vendedorId != null ? vendedores.find(v => Number(v.id) === Number(vendedorId)) : null;
+  if (byId?.foto_url) return byId.foto_url;
+
+  const name = normalizePersonName(leadOrSeller.vendedor_nombre || leadOrSeller.name || leadOrSeller.nombre);
+  if (!name) return null;
+  return vendedores.find(v => normalizePersonName(v.nombre) === name)?.foto_url || null;
+}
+
 /* =========================================================
    Cálculo de SLA en minutos hábiles (Lima)
    Extraído de TablaLeads.jsx / Gerencia.jsx — fuente única.

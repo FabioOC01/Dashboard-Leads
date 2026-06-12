@@ -9,7 +9,9 @@ exports.getLeads = async (req, res) => {
       SELECT
         l.*,
         v.nombre AS vendedor_nombre,
+        v.foto_url AS vendedor_foto_url,
         t.nombre AS tecnico_nombre,
+        t.foto_url AS tecnico_foto_url,
         business_minutes(l.ts_efectivo, l.ts_primera_respuesta)    AS min_primera_respuesta,
         business_minutes(l.ts_primera_respuesta, l.ts_cotizacion_enviada) AS min_cotizacion,
         CASE
@@ -85,7 +87,9 @@ exports.actualizarVendedor = async (req, res) => {
     try {
         const { rows } = await pool.query(
             `UPDATE leads SET vendedor_id = $1 WHERE id = $2
-             RETURNING *, (SELECT nombre FROM vendedores WHERE id = $1) AS vendedor_nombre`,
+             RETURNING *,
+               (SELECT nombre FROM vendedores WHERE id = $1) AS vendedor_nombre,
+               (SELECT foto_url FROM vendedores WHERE id = $1) AS vendedor_foto_url`,
             [vendedor_id || null, id]
         );
         if (!rows.length) return res.status(404).json({ error: 'Lead no encontrado' });

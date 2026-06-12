@@ -20,7 +20,7 @@ import ModalVendedores from '../components/ModalVendedores';
 import { Icon } from '../components/Icon';
 import {
   STATUS_ORDER, ESTADOS_CERRADOS, businessMinutesSince, statusMeta, canalMeta,
-  getMinutosPrimeraRespuesta, slaLevel,
+  getMinutosPrimeraRespuesta, getVendedorFotoUrl, slaLevel,
 } from '../utils/domain';
 
 const TIPO_PALETTE = ['var(--primary)', 'var(--st-derivado)', 'var(--st-venta)', 'var(--warn)', 'var(--st-cotizado)', 'var(--st-tecnico)', 'var(--neutral)'];
@@ -165,7 +165,8 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
   useEffect(() => { getTecnicos().then(setTecnicos); }, []);
-  useEffect(() => { getVendedores().then(setVendedores); }, []);
+  const cargarVendedores = useCallback(() => getVendedores().then(setVendedores), []);
+  useEffect(() => { cargarVendedores(); }, [cargarVendedores]);
 
   // Auto-refresh cada 60s para mantener los minutos hábiles actualizados
   useEffect(() => {
@@ -558,8 +559,9 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
     leadsFiltrados.forEach(l => {
       const name = l.vendedor_nombre;
       if (!name) return;
-      if (!byV.has(name)) byV.set(name, { name, ventas: 0, leads: 0, ok: 0, total: 0, verde: 0, amarillo: 0, rojo: 0 });
+      if (!byV.has(name)) byV.set(name, { name, ventas: 0, leads: 0, ok: 0, total: 0, verde: 0, amarillo: 0, rojo: 0, foto_url: null });
       const v = byV.get(name);
+      v.foto_url = v.foto_url || getVendedorFotoUrl(l, vendedores);
       v.leads++;
       if (l.estado === 'venta_efectiva') v.ventas++;
       let t;
@@ -579,7 +581,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
         id: v.name, name: v.name, ventas: v.ventas, leads: v.leads,
         sla: v.total ? Math.round(v.ok / v.total * 100) : 0,
         verde: v.verde, amarillo: v.amarillo, rojo: v.rojo,
-        foto_url: vendedores.find(vd => vd.nombre === v.name)?.foto_url || null,
+        foto_url: v.foto_url || getVendedorFotoUrl({ name: v.name }, vendedores),
       }))
       .sort((a, b) => b.ventas - a.ventas || b.leads - a.leads)
       .slice(0, 6);
@@ -601,7 +603,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
   return (
     <div className="app">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      {showVendedores && <ModalVendedores onClose={() => setShowVendedores(false)} />}
+      {showVendedores && <ModalVendedores onClose={() => setShowVendedores(false)} onChanged={cargarVendedores} />}
 
       <Topbar
         conectado={conectado}
@@ -646,7 +648,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                 <div className="grid grid--ops">
                   <SellerRanking data={ranking} onVerTodos={isAdmin ? () => setShowVendedores(true) : undefined} />
                   <SlaSemaphore aTiempo={aTiempo} enRiesgo={enRiesgo} atrasados={atrasados} />
-                  <CriticalLeads leads={leadsFiltrados} fetchedAt={fetchedAt} onVerDetalle={() => setView('detalle')} />
+                  <CriticalLeads leads={leadsFiltrados} fetchedAt={fetchedAt} vendedores={vendedores} onVerDetalle={() => setView('detalle')} />
                 </div>
 
                 <div className="grid grid--analysis">
@@ -657,6 +659,7 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
                 <OperativeTable
                   rows={leadsFiltrados.slice(0, 5)} showSearch={false} totalCount={leadsFiltrados.length}
                   fetchedAt={fetchedAt} isAdmin={isAdmin} newIds={newIds}
+                  vendedores={vendedores}
                   onVerDetalle={() => setView('detalle')}
                   onEliminar={id => setLeads(prev => prev.filter(l => l.id !== id))}
                 />

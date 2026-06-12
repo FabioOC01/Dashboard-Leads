@@ -5,7 +5,7 @@ const ROLES = ['vendedor', 'tecnico'];
 
 const VACIO = { nombre: '', email: '', whatsapp: '', rol: 'vendedor', foto_url: '' };
 
-export default function ModalVendedores({ onClose }) {
+export default function ModalVendedores({ onClose, onChanged }) {
   const [vendedores, setVendedores] = useState([]);
   const [editando, setEditando] = useState(null); // { id } o null para nuevo
   const [form, setForm] = useState(VACIO);
@@ -45,6 +45,7 @@ export default function ModalVendedores({ onClose }) {
         await updateVendedor(editando, form);
       }
       await cargar();
+      await onChanged?.();
       cancelar();
     } catch (err) {
       setError(err.response?.data?.error || 'Error al guardar');
@@ -57,6 +58,7 @@ export default function ModalVendedores({ onClose }) {
     if (!window.confirm(`¿Desactivar a ${v.nombre}? Ya no aparecerá en los selects.`)) return;
     await deleteVendedor(v.id);
     await cargar();
+    await onChanged?.();
   };
 
   return (

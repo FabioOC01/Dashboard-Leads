@@ -1,9 +1,10 @@
 /* OperativeTable.jsx — tabla operativa compacta del dashboard */
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon';
+import SellerAvatar from './SellerAvatar';
 import { deleteLead } from '../api/leads';
 import {
-  statusMeta, canalMeta, initials, avatarColor, ESTADOS_CERRADOS,
+  statusMeta, canalMeta, ESTADOS_CERRADOS,
   getMinutosPrimeraRespuesta, getMinutosCotizacion, slaLevel,
   SLA_RESPUESTA, SLA_COTIZACION,
 } from '../utils/domain';
@@ -15,7 +16,7 @@ function fmtMin(m) {
   return `${v}m`;
 }
 
-export default function OperativeTable({ rows, query, setQuery, fetchedAt, isAdmin, newIds, onVerDetalle, onVer, onEliminar, showSearch = true, totalCount }) {
+export default function OperativeTable({ rows, query, setQuery, fetchedAt, isAdmin, newIds, onVerDetalle, onVer, onEliminar, showSearch = true, totalCount, vendedores = [] }) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setTick(k => k + 1), 1000);
@@ -93,7 +94,7 @@ export default function OperativeTable({ rows, query, setQuery, fetchedAt, isAdm
                     <td>
                       {r.vendedor_nombre ? (
                         <div className="cell-seller">
-                          <span className="rank-av" style={{ background: avatarColor(r.vendedor_nombre) }}>{initials(r.vendedor_nombre)}</span>
+                          <SellerAvatar seller={r} vendedores={vendedores} />
                           <span style={{ fontWeight: 500 }}>{r.vendedor_nombre.split(' ')[0]}</span>
                         </div>
                       ) : <span style={{ color: 'var(--ink-3)' }}>Sin asignar</span>}
