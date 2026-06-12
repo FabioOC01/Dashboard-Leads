@@ -1,12 +1,13 @@
-/* CriticalLeads.jsx — leads por vencer / vencidos, con cuenta regresiva en vivo */
+/* CriticalLeads.jsx - leads por vencer / vencidos, con cuenta regresiva en vivo */
 import { Icon } from './Icon';
+import SellerAvatar from './SellerAvatar';
 import { useTicker, fmtCountdownMin } from '../hooks/useDashboard';
 import {
-  statusMeta, canalMeta, getMinutosPrimeraRespuesta, initials, avatarColor,
+  statusMeta, canalMeta, getMinutosPrimeraRespuesta,
   ESTADOS_CERRADOS, SLA_RESPUESTA,
 } from '../utils/domain';
 
-export default function CriticalLeads({ leads, fetchedAt, limit = 4, onVerDetalle }) {
+export default function CriticalLeads({ leads, fetchedAt, limit = 4, onVerDetalle, vendedores = [] }) {
   useTicker(1000); // re-render cada segundo para el countdown
 
   const items = (leads || [])
@@ -19,7 +20,7 @@ export default function CriticalLeads({ leads, fetchedAt, limit = 4, onVerDetall
       return { lead: l, sla, restante };
     })
     .filter(Boolean)
-    // todos los leads pendientes de 1ª respuesta (incluye nuevos), ordenados por urgencia
+    // Todos los leads pendientes de primera respuesta, ordenados por urgencia.
     .sort((a, b) => a.restante - b.restante)
     .slice(0, limit);
 
@@ -43,7 +44,6 @@ export default function CriticalLeads({ leads, fetchedAt, limit = 4, onVerDetall
           <div className="crit">
             {items.map(({ lead: l, sla, restante }) => {
               const cd = fmtCountdownMin(restante);
-              // ≤5 min o vencido → rojo (alerta "casi vence"); 5–10 min → ámbar; resto → nuevo
               const rowCls = restante <= 5 ? 'is-danger' : restante <= 10 ? 'is-warn' : 'is-fresh';
               const st = statusMeta(l.estado);
               const ch = canalMeta(l.canal);
@@ -63,9 +63,7 @@ export default function CriticalLeads({ leads, fetchedAt, limit = 4, onVerDetall
                     </div>
                   </div>
                   <div className="crit-meta">
-                    <span className="rank-av" style={{ width: 26, height: 26, fontSize: 10, background: avatarColor(l.vendedor_nombre || '?') }}>
-                      {l.vendedor_nombre ? initials(l.vendedor_nombre) : '—'}
-                    </span>
+                    <SellerAvatar seller={l} vendedores={vendedores} size={26} fontSize={10} />
                     <div className="crit-sla">
                       <div className="crit-sla__label">{sla.label}</div>
                       <div className="crit-count">

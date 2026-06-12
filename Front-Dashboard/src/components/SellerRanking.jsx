@@ -1,6 +1,6 @@
 /* SellerRanking.jsx - ranking de vendedores (ventas, leads, SLA%) */
 import { Icon } from './Icon';
-import { initials, avatarColor } from '../utils/domain';
+import SellerAvatar from './SellerAvatar';
 
 function slaTone(sla) {
   if (sla >= 70) return 'ok';
@@ -35,10 +35,7 @@ export default function SellerRanking({ data, onVerTodos }) {
                   {i === 0 ? <Icon name="trophy" size={15} style={{ color: 'var(--warn)' }} /> : i + 1}
                 </span>
                 <div className="rank-id">
-                  {r.foto_url
-                    ? <img className="rank-av rank-av--photo" src={r.foto_url} alt={r.name} />
-                    : <span className="rank-av" style={{ background: avatarColor(r.name) }}>{initials(r.name)}</span>
-                  }
+                  <SellerAvatar seller={r} name={r.name} />
                   <div className="rank-meta">
                     <div className="rank-name">{r.name}</div>
                     <div className="rank-sub">
