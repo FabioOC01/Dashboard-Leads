@@ -119,7 +119,16 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
 
     if (!silent) setIsLoading(true);
     try {
-      const [l, m, mt] = await Promise.all([getLeads(desde), getMetricas(), getMetricasTecnico()]);
+      const [leadsRes, metricasRes, tecnicoRes] = await Promise.allSettled([
+        getLeads(desde),
+        getMetricas(),
+        getMetricasTecnico(),
+      ]);
+      if (leadsRes.status === 'rejected') throw leadsRes.reason;
+      if (metricasRes.status === 'rejected') throw metricasRes.reason;
+      const l = leadsRes.value;
+      const m = metricasRes.value;
+      const mt = tecnicoRes.status === 'fulfilled' ? tecnicoRes.value : [];
       setLeads(prev => l.map(newLead => {
         const existing = prev.find(p => p.id === newLead.id);
         const cotAt = existing?._cotizacionAt

@@ -76,7 +76,64 @@ exports.getMetricasTecnico = async (req, res) => {
         const { rows } = await pool.query(`SELECT * FROM metricas_tecnico WHERE leads_atendidos > 0`);
         res.json(rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (!['42P01', '42703'].includes(err.code)) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        try {
+            const { rows: leadColumns } = await pool.query(`
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'leads'
+                  AND column_name IN ('tecnico_id', 'ts_derivado', 'ts_cotizacion_tecnico', 'ts_cierre')
+            `);
+            const { rows: vendorColumns } = await pool.query(`
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'vendedores'
+                  AND column_name = 'rol'
+            `);
+            const leadCols = new Set(leadColumns.map(r => r.column_name));
+            const hasRol = vendorColumns.length > 0;
+
+            if (!leadCols.has('tecnico_id')) {
+                return res.json([]);
+            }
+
+            const avgSoporteCotizacion = leadCols.has('ts_derivado') && leadCols.has('ts_cotizacion_tecnico')
+                ? `ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_cotizacion_tecnico - l.ts_derivado)) / 60)
+                    FILTER (WHERE l.ts_derivado IS NOT NULL AND l.ts_cotizacion_tecnico IS NOT NULL))`
+                : `NULL::numeric`;
+            const avgSoporteFinal = leadCols.has('ts_derivado') && leadCols.has('ts_cierre')
+                ? `ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_cierre - l.ts_derivado)) / 60)
+                    FILTER (WHERE l.ts_derivado IS NOT NULL AND l.ts_cierre IS NOT NULL
+                              AND l.estado IN ('venta_efectiva', 'no_efectiva')))`
+                : `NULL::numeric`;
+            const roleFilter = hasRol ? `AND v.rol = 'tecnico'` : '';
+
+            const { rows } = await pool.query(`
+                SELECT
+                    v.id,
+                    v.nombre,
+                    COUNT(l.id) AS leads_atendidos,
+                    COUNT(l.id) FILTER (WHERE l.estado = 'derivado') AS derivados_abiertos,
+                    COUNT(l.id) FILTER (WHERE l.estado = 'venta_efectiva') AS ventas_efectivas,
+                    COUNT(l.id) FILTER (WHERE l.estado = 'no_efectiva') AS no_efectivas,
+                    ${avgSoporteCotizacion} AS avg_min_soporte_cotizacion,
+                    ${avgSoporteFinal} AS avg_min_soporte_final
+                FROM vendedores v
+                LEFT JOIN leads l ON l.tecnico_id = v.id
+                WHERE v.activo = true ${roleFilter}
+                GROUP BY v.id, v.nombre
+                HAVING COUNT(l.id) > 0
+                ORDER BY leads_atendidos DESC, v.nombre
+            `);
+            res.json(rows);
+        } catch (fallbackErr) {
+            res.status(500).json({ error: fallbackErr.message });
+        }
     }
 };
 
