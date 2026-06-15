@@ -3,17 +3,34 @@ const pool = require('../db/pool');
 const admin = require('../middleware/verificarAdmin');
 
 router.get('/', async (req, res) => {
-    const { rows } = await pool.query(
-        `SELECT * FROM vendedores WHERE activo = true ORDER BY nombre`
-    );
-    res.json(rows);
+    try {
+        const { rows } = await pool.query(
+            `SELECT * FROM vendedores WHERE activo = true ORDER BY nombre`
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 router.get('/tecnicos', async (req, res) => {
-    const { rows } = await pool.query(
-        `SELECT id, nombre FROM vendedores WHERE activo = true AND rol = 'tecnico' ORDER BY nombre`
-    );
-    res.json(rows);
+    try {
+        const { rows: columns } = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'vendedores'
+              AND column_name = 'rol'
+        `);
+        if (!columns.length) return res.json([]);
+
+        const { rows } = await pool.query(
+            `SELECT id, nombre FROM vendedores WHERE activo = true AND rol = 'tecnico' ORDER BY nombre`
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 router.post('/', admin, async (req, res) => {
