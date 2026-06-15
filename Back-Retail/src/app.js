@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
+const pool = require('./db/pool');
 const webhookRoutes = require('./routes/webhook');
 const leadsRoutes = require('./routes/leads');
 const vendedoresRoutes = require('./routes/vendedores');
@@ -58,7 +59,27 @@ initSocket(io);
 cronJobs.init(io);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
+let shuttingDown = false;
+const listener = server.listen(PORT, '0.0.0.0', () => {
     console.log(`[SERVER] Corriendo en http://localhost:${PORT}`);
     console.log(`[SERVER] Red local: http://192.168.1.114:${PORT}`);
 });
+
+async function shutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[SERVER] Cerrando por ${signal}...`);
+    io.close();
+    listener.close(async () => {
+        try {
+            await pool.end();
+            process.exit(0);
+        } catch (err) {
+            console.error('[SERVER] Error cerrando conexiones:', err.message);
+            process.exit(1);
+        }
+    });
+}
+
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));

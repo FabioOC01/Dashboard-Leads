@@ -158,10 +158,15 @@ export default function Gerencia({ isAdmin = false, onAdminClick, onLogout }) {
       setMetricasTecnico(mt);
       setFetchedAt(Date.now());
       setUltima(new Date());
+    } catch (err) {
+      console.error('[Gerencia] Error cargando datos:', err);
+      if (!silent) {
+        addToast('No se pudo actualizar el dashboard', 'error');
+      }
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [filtroFecha]);
+  }, [filtroFecha, addToast]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
   useEffect(() => { getTecnicos().then(setTecnicos); }, []);

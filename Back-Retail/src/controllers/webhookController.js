@@ -24,6 +24,7 @@ exports.leadCreado = async (req, res) => {
         contact_id, nombre, celular, canal,
         campana, requerimiento, tipo, notas, asesor_asignado
     } = req.body;
+    const contactId = contact_id || null;
 
     try {
         console.log("PAYLOAD COMPLETO DESDE SENDPULSE:", req.body);
@@ -45,22 +46,34 @@ exports.leadCreado = async (req, res) => {
     (sendpulse_contact_id, nombre, celular, canal, campana,
      requerimiento, tipo, notas, vendedor_id, ts_lead_creado, ts_efectivo, estado)
    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),siguiente_momento_habil(NOW()::timestamp),'nuevo')
-   RETURNING *`,
-            [contact_id, nombre, celular, canal, campana, requerimiento, tipo, notas, vendedor_id]
+   ON CONFLICT (sendpulse_contact_id) DO UPDATE SET
+     nombre        = COALESCE(EXCLUDED.nombre, leads.nombre),
+     celular       = COALESCE(EXCLUDED.celular, leads.celular),
+     canal         = COALESCE(EXCLUDED.canal, leads.canal),
+     campana       = COALESCE(EXCLUDED.campana, leads.campana),
+     requerimiento = COALESCE(EXCLUDED.requerimiento, leads.requerimiento),
+     tipo          = COALESCE(EXCLUDED.tipo, leads.tipo),
+     notas         = COALESCE(EXCLUDED.notas, leads.notas),
+     vendedor_id   = COALESCE(leads.vendedor_id, EXCLUDED.vendedor_id)
+   RETURNING *, (xmax = 0) AS inserted_flag`,
+            [contactId, nombre, celular, canal, campana, requerimiento, tipo, notas, vendedor_id]
         );
 
         const lead = rows[0];
         lead.vendedor_nombre = asesor_asignado;
+        const wasInserted = lead.inserted_flag === true;
 
-        await pool.query(
-            `INSERT INTO eventos_lead (lead_id, vendedor_id, tipo)
+        if (wasInserted) {
+            await pool.query(
+                `INSERT INTO eventos_lead (lead_id, vendedor_id, tipo)
        VALUES ($1,$2,'lead_creado')`,
-            [lead.id, vendedor_id]
-        );
+                [lead.id, vendedor_id]
+            );
+        }
 
-        req.io.emit('lead:nuevo', lead);
-        console.log(`[WEBHOOK] Lead creado: ${lead.id} — ${lead.nombre} → vendedor: ${asesor_asignado}`);
-        res.json({ ok: true, lead });
+        req.io.emit(wasInserted ? 'lead:nuevo' : 'lead:actualizado', lead);
+        console.log(`[WEBHOOK] Lead ${wasInserted ? 'creado' : 'actualizado'}: ${lead.id} — ${lead.nombre} → vendedor: ${asesor_asignado}`);
+        res.json({ ok: true, lead, duplicated: !wasInserted });
 
     } catch (err) {
         console.error('[WEBHOOK] Error leadCreado:', err);

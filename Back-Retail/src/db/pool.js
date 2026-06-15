@@ -18,6 +18,11 @@ const pool = new Pool({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     options: '-c timezone=America/Lima',
+    max: Number(process.env.DB_POOL_MAX || 3),
+    min: Number(process.env.DB_POOL_MIN || 0),
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 10000),
+    connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5000),
+    maxLifetimeSeconds: Number(process.env.DB_MAX_LIFETIME_SECONDS || 60),
 });
 
 pool.on('connect', () => {
