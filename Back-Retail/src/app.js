@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const http = require('http');
@@ -17,19 +18,38 @@ const panelRoutes = require('./routes/panel');
 
 // Orígenes permitidos para CORS. Si CORS_ORIGINS no está definido, se permite todo
 // (compatibilidad). Define CORS_ORIGINS="https://dash.tu-dominio,http://192.168.x.x:5173" para restringir.
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
+function getLocalViteOrigins() {
+    const origins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+    const interfaces = os.networkInterfaces();
+
+    Object.values(interfaces).forEach((entries = []) => {
+        entries
+            .filter(entry => entry.family === 'IPv4' && !entry.internal)
+            .forEach(entry => origins.push(`http://${entry.address}:5173`));
+    });
+
+    return origins;
+}
+
+function unique(values) {
+    return [...new Set(values.filter(Boolean))];
+}
+
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
-const corsOrigin = allowedOrigins.length ? allowedOrigins : true;
+const allowedOrigins = unique([...configuredOrigins, ...getLocalViteOrigins()]);
+const corsOrigin = configuredOrigins.length ? allowedOrigins : true;
+const corsOptions = { origin: corsOrigin };
 
 const app = express();
 app.set('trust proxy', 1); // Soluciona error de express-rate-limit con SendPulse/Ngrok
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: corsOrigin }
+    cors: corsOptions
 });
 
 // Middlewares globales
-app.use(cors({ origin: corsOrigin }));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rate limiting solo en webhooks
@@ -62,7 +82,12 @@ const PORT = process.env.PORT || 3000;
 let shuttingDown = false;
 const listener = server.listen(PORT, '0.0.0.0', () => {
     console.log(`[SERVER] Corriendo en http://localhost:${PORT}`);
-    console.log(`[SERVER] Red local: http://192.168.1.114:${PORT}`);
+    getLocalViteOrigins()
+        .filter(origin => !origin.includes('localhost') && !origin.includes('127.0.0.1'))
+        .forEach(origin => {
+            const backendUrl = origin.replace(':5173', `:${PORT}`);
+            console.log(`[SERVER] Red local: ${backendUrl}`);
+        });
 });
 
 async function shutdown(signal) {
