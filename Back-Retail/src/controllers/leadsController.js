@@ -12,38 +12,38 @@ exports.getLeads = async (req, res) => {
         v.foto_url AS vendedor_foto_url,
         t.nombre AS tecnico_nombre,
         t.foto_url AS tecnico_foto_url,
-        business_minutes(l.ts_efectivo, l.ts_primera_respuesta)    AS min_primera_respuesta,
-        business_minutes(l.ts_primera_respuesta, l.ts_cotizacion_enviada) AS min_cotizacion,
+        ROUND(EXTRACT(EPOCH FROM (l.ts_primera_respuesta - l.ts_efectivo)) / 60) AS min_primera_respuesta,
+        ROUND(EXTRACT(EPOCH FROM (l.ts_cotizacion_enviada - l.ts_primera_respuesta)) / 60) AS min_cotizacion,
         CASE
           WHEN l.ts_primera_respuesta IS NULL THEN
-            business_minutes(l.ts_efectivo, momento_habil_vigente(NOW()::timestamp))
+            GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW()::timestamp - COALESCE(l.ts_efectivo, l.ts_lead_creado, l.creado_en))) / 60))
           ELSE NULL
         END AS min_esperando_respuesta,
         CASE
           WHEN l.ts_primera_respuesta IS NOT NULL AND l.ts_cotizacion_enviada IS NULL AND l.estado NOT IN ('derivado','venta_efectiva','no_efectiva','negociacion_futuro') THEN
-            business_minutes(l.ts_primera_respuesta, momento_habil_vigente(NOW()::timestamp))
+            GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW()::timestamp - l.ts_primera_respuesta)) / 60))
           ELSE NULL
         END AS min_esperando_cotizacion,
         CASE
           WHEN l.estado = 'derivado' AND l.ts_derivado IS NOT NULL THEN
-            business_minutes(l.ts_derivado, NOW()::timestamp)
+            GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW()::timestamp - l.ts_derivado)) / 60))
           ELSE NULL
         END AS min_esperando_soporte,
         CASE
           WHEN l.ts_derivado IS NOT NULL AND l.ts_cotizacion_tecnico IS NOT NULL THEN
-            business_minutes(l.ts_derivado, l.ts_cotizacion_tecnico)
+            ROUND(EXTRACT(EPOCH FROM (l.ts_cotizacion_tecnico - l.ts_derivado)) / 60)
           WHEN l.ts_derivado IS NOT NULL AND l.ts_cotizacion_tecnico IS NULL AND l.estado = 'derivado' THEN
-            business_minutes(l.ts_derivado, momento_habil_vigente(NOW()::timestamp))
+            GREATEST(0, ROUND(EXTRACT(EPOCH FROM (NOW()::timestamp - l.ts_derivado)) / 60))
           ELSE NULL
         END AS min_soporte_cotizacion,
         CASE
           WHEN l.estado IN ('venta_efectiva','no_efectiva') AND l.ts_derivado IS NOT NULL AND l.ts_cierre IS NOT NULL THEN
-            business_minutes(l.ts_derivado, l.ts_cierre)
+            ROUND(EXTRACT(EPOCH FROM (l.ts_cierre - l.ts_derivado)) / 60)
           ELSE NULL
         END AS min_soporte_final,
         CASE
           WHEN l.estado IN ('venta_efectiva','no_efectiva','negociacion_futuro') AND l.ts_primera_respuesta IS NOT NULL AND l.ts_cotizacion_enviada IS NULL AND l.ts_cierre IS NOT NULL THEN
-            business_minutes(l.ts_primera_respuesta, l.ts_cierre)
+            ROUND(EXTRACT(EPOCH FROM (l.ts_cierre - l.ts_primera_respuesta)) / 60)
           ELSE NULL
         END AS min_cotizacion_final
       FROM leads l
@@ -63,7 +63,24 @@ exports.getLeads = async (req, res) => {
 // Métricas para el dashboard de gerencia
 exports.getMetricas = async (req, res) => {
     try {
-        const { rows } = await pool.query(`SELECT * FROM metricas_vendedor`);
+        const { rows } = await pool.query(`
+            SELECT
+                v.id,
+                v.nombre,
+                COUNT(l.id) FILTER (WHERE l.estado NOT IN ('no_efectiva')) AS leads_activos,
+                COUNT(l.id) FILTER (WHERE l.estado = 'venta_efectiva') AS ventas_efectivas,
+                COUNT(l.id) FILTER (WHERE l.estado = 'no_efectiva') AS no_efectivas,
+                COUNT(l.id) FILTER (WHERE l.estado = 'negociacion_futuro') AS en_seguimiento,
+                ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_primera_respuesta - l.ts_efectivo)) / 60)
+                    FILTER (WHERE l.ts_primera_respuesta IS NOT NULL AND l.ts_efectivo IS NOT NULL)) AS avg_min_primera_respuesta,
+                ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_cotizacion_enviada - l.ts_primera_respuesta)) / 60)
+                    FILTER (WHERE l.ts_cotizacion_enviada IS NOT NULL AND l.ts_primera_respuesta IS NOT NULL)) AS avg_min_cotizacion
+            FROM vendedores v
+            LEFT JOIN leads l ON l.vendedor_id = v.id
+            WHERE v.activo = true
+            GROUP BY v.id, v.nombre
+            ORDER BY v.nombre
+        `);
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -73,7 +90,26 @@ exports.getMetricas = async (req, res) => {
 // Métricas del área técnica
 exports.getMetricasTecnico = async (req, res) => {
     try {
-        const { rows } = await pool.query(`SELECT * FROM metricas_tecnico WHERE leads_atendidos > 0`);
+        const { rows } = await pool.query(`
+            SELECT
+                v.id,
+                v.nombre,
+                COUNT(l.id) AS leads_atendidos,
+                COUNT(l.id) FILTER (WHERE l.estado = 'derivado') AS derivados_abiertos,
+                COUNT(l.id) FILTER (WHERE l.estado = 'venta_efectiva') AS ventas_efectivas,
+                COUNT(l.id) FILTER (WHERE l.estado = 'no_efectiva') AS no_efectivas,
+                ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_cotizacion_tecnico - l.ts_derivado)) / 60)
+                    FILTER (WHERE l.ts_derivado IS NOT NULL AND l.ts_cotizacion_tecnico IS NOT NULL)) AS avg_min_soporte_cotizacion,
+                ROUND(AVG(EXTRACT(EPOCH FROM (l.ts_cierre - l.ts_derivado)) / 60)
+                    FILTER (WHERE l.ts_derivado IS NOT NULL AND l.ts_cierre IS NOT NULL
+                              AND l.estado IN ('venta_efectiva', 'no_efectiva'))) AS avg_min_soporte_final
+            FROM vendedores v
+            LEFT JOIN leads l ON l.tecnico_id = v.id
+            WHERE v.activo = true AND v.rol = 'tecnico'
+            GROUP BY v.id, v.nombre
+            HAVING COUNT(l.id) > 0
+            ORDER BY leads_atendidos DESC, v.nombre
+        `);
         res.json(rows);
     } catch (err) {
         if (!['42P01', '42703'].includes(err.code)) {
