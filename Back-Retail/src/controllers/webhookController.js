@@ -1,9 +1,11 @@
 const pool = require('../db/pool');
 
-const CRM_WEBHOOK_URL   = process.env.CRM_WEBHOOK_URL   || 'http://localhost:3001/webhook/cotizacion-enviada';
+const CRM_WEBHOOK_URL   = process.env.CRM_WEBHOOK_URL   || '';
 const CRM_WEBHOOK_TOKEN = process.env.CRM_WEBHOOK_TOKEN || '';
 
 function forwardCotizacionToCRM(body) {
+    if (!CRM_WEBHOOK_URL) return;
+
     fetch(CRM_WEBHOOK_URL, {
         method: 'POST',
         headers: {
