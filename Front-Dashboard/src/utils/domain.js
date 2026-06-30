@@ -22,11 +22,11 @@ export function statusMeta(estado) {
 
 /* ---- canales (iconos + color, reusados del dashboard actual) ---- */
 export const CANAL_META = {
-  store:     { color: '#7C3AED', icon: 'https://comutelperu.com/correo-cm/Iconos/odoo.png?v=2' },
-  whatsapp:  { color: '#1c8a5a', icon: 'https://comutelperu.com/correo-cm/Iconos/whatsapp.png' },
-  facebook:  { color: '#3257b8', icon: 'https://comutelperu.com/correo-cm/Iconos/facebook.png?v=2' },
+  store:     { color: '#7C3AED', icon: '/canales/odoo.png' },
+  whatsapp:  { color: '#1c8a5a', icon: '/canales/whatsapp.png' },
+  facebook:  { color: '#3257b8', icon: '/canales/facebook.png' },
   instagram: { color: '#c2387a', icon: 'https://comutelperu.com/correo-cm/Iconos/instagram.png' },
-  web:       { color: '#0a5b89', icon: 'https://comutelperu.com/correo-cm/Logo/ISO.png' },
+  web:       { color: '#0a5b89', icon: '/canales/web.png' },
   tiktok:    { color: '#64748b', icon: null },
   youtube:   { color: '#d23f3f', icon: null },
 };
@@ -56,7 +56,43 @@ export function normalizePersonName(name = '') {
   return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/* slug del nombre: minúsculas, sin tildes, espacios -> guion.
+   "María Fernanda Villacorta" -> "maria-fernanda-villacorta" */
+export function slugNombre(name = '') {
+  return String(name)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/* Fotos locales en public/vendedores/. La clave es el nombre del vendedor
+   slugificado (minúsculas, sin tildes, espacios -> guion). Se admite tanto
+   el nombre corto que usa la BD ('christian') como el nombre completo
+   ('christian-cabrera'). Para añadir uno nuevo: sube la foto a
+   public/vendedores/ y agrega su(s) línea(s) aquí. */
+export const VENDEDOR_FOTOS = {
+  'christian':                 '/vendedores/christian-cabrera.jpeg',
+  'christian-cabrera':         '/vendedores/christian-cabrera.jpeg',
+  'elias':                     '/vendedores/elias-buitron.png',
+  'elias-buitron':             '/vendedores/elias-buitron.png',
+  'erimay':                    '/vendedores/erimay-torres.png',
+  'erimay-torres':             '/vendedores/erimay-torres.png',
+  'estefany':                  '/vendedores/estefany-condori.png',
+  'estefany-condori':          '/vendedores/estefany-condori.png',
+  'maria-fernanda':            '/vendedores/maria-fernanda-villacorta.jpeg',
+  'maria-fernanda-villacorta': '/vendedores/maria-fernanda-villacorta.jpeg',
+  'sthefania':                 '/vendedores/sthefania-villalobos.png',
+  'sthefania-villalobos':      '/vendedores/sthefania-villalobos.png',
+};
+
 export function getVendedorFotoUrl(leadOrSeller = {}, vendedores = []) {
+  const rawName = leadOrSeller.vendedor_nombre || leadOrSeller.name || leadOrSeller.nombre || '';
+
+  // La foto local tiene prioridad: reemplaza los foto_url remotos (rotos) de la BD.
+  const local = VENDEDOR_FOTOS[slugNombre(rawName)];
+  if (local) return local;
+
   if (leadOrSeller.vendedor_foto_url) return leadOrSeller.vendedor_foto_url;
   if (leadOrSeller.foto_url) return leadOrSeller.foto_url;
 
@@ -64,8 +100,8 @@ export function getVendedorFotoUrl(leadOrSeller = {}, vendedores = []) {
   const byId = vendedorId != null ? vendedores.find(v => Number(v.id) === Number(vendedorId)) : null;
   if (byId?.foto_url) return byId.foto_url;
 
-  const name = normalizePersonName(leadOrSeller.vendedor_nombre || leadOrSeller.name || leadOrSeller.nombre);
-  if (!name) return null;
+  if (!rawName) return null;
+  const name = normalizePersonName(rawName);
   return vendedores.find(v => normalizePersonName(v.nombre) === name)?.foto_url || null;
 }
 
