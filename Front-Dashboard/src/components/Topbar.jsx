@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Icon } from './Icon';
 import { usePeruClock } from '../hooks/useDashboard';
 
-const FULL_LOGO_LIGHT = 'https://comutelperu.com/correo-cm/Logo/LOGO.png';
-const FULL_LOGO_DARK = 'https://comutelperu.com/correo-cm/Logo/LOGO-BLANCO.png';
+const FULL_LOGO_LIGHT = '/LOGO.png';
+const FULL_LOGO_DARK = '/LOGO-BLANCO.png';
 
 const ENLACES = [
   { href: 'http://192.168.1.51:5175', label: 'Vantio Planner', icon: 'https://comutelperu.com/correo-cm/Vantio/LOGO/VANTIO-BLANCO-SHORT.png' },
