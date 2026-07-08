@@ -10,9 +10,9 @@ function getCtx() {
 export function playNuevoLead(vendedorNombre = '') {
   try {
     const SoundsMap = {
-      'erimay': 'https://comutelperu.com/correo-cm/SoundsDashboard/erimay.mp3',
-      'sthefania': 'https://comutelperu.com/correo-cm/SoundsDashboard/sthefania.mp3',
-      'estefany': 'https://comutelperu.com/correo-cm/SoundsDashboard/estefany.wav'
+      'erimay': '/sounds/erimay.mp3',
+      'sthefania': '/sounds/sthefania.mp3',
+      'estefany': '/sounds/estefany.wav'
     };
 
     const asName = vendedorNombre.toLowerCase();
@@ -51,8 +51,8 @@ export function playNuevoLead(vendedorNombre = '') {
 export function playVentaEfectiva() {
   try {
     const sounds = [
-      'https://comutelperu.com/correo-cm/SoundsDashboard/venta1.wav',
-      'https://comutelperu.com/correo-cm/SoundsDashboard/venta2.wav',
+      '/sounds/venta1.wav',
+      '/sounds/venta2.wav',
     ];
     const url = sounds[Math.random() < 0.5 ? 0 : 1];
     const a1 = new Audio(url);
@@ -66,7 +66,7 @@ export function playVentaEfectiva() {
 // Sonido de alerta SLA (archivo WAV externo)
 export function playAlertaSLA() {
   try {
-    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/sla.wav');
+    const audio = new Audio('/sounds/sla.wav');
     audio.volume = 0.3;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) {
@@ -77,7 +77,7 @@ export function playAlertaSLA() {
 // ── Sonido de inicio de jornada ──
 export function playInicioJornada() {
   try {
-    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/inicio.wav');
+    const audio = new Audio('/sounds/inicio.wav');
     audio.volume = 0.6;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) { console.warn('Audio inicio jornada no disponible:', e); }
@@ -86,7 +86,7 @@ export function playInicioJornada() {
 // ── Sonido de fin de jornada ──
 export function playFinJornada() {
   try {
-    const audio = new Audio('https://comutelperu.com/correo-cm/SoundsDashboard/fin.wav');
+    const audio = new Audio('/sounds/fin.wav');
     audio.volume = 0.5;
     audio.play().catch(e => console.warn('Bloqueado por el navegador:', e));
   } catch (e) { console.warn('Audio fin jornada no disponible:', e); }
