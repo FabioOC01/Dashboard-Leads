@@ -1,16 +1,30 @@
 Copyright (c) 2026 Comutel Perú
 
-Este software fue creado por Orlando Fabio Ochoa Cuenca para la empresa Comutel Perú.
+Este software fue creado por Orlando Fabio Ochoa Cuenca para la empresa Comutel Perú S.A.C. 
+Todos los derechos de propiedad intelectual quedan reservados.
 
-Distribución y comercialización:
-- Este software solo puede ser distribuido o comercializado a través de
-  Comutel Perú.
-- Si el creador deja de trabajar para Comutel Perú, toda venta o
-  comercialización del proyecto realizada deberá
-  reconocerle una comisión por dicha venta.
+1. TÉRMINOS DE USO Y LICENCIA
+Se otorga al usuario una licencia de uso no exclusiva, intransferible y limitada. 
+La entrega de este software no transfiere la propiedad del código fuente ni de sus componentes.
 
-Cualquier otro uso comercial, redistribución o trabajo derivado requiere
-autorización escrita del autor y/o de Comutel Perú.
+2. DISTRIBUCIÓN Y COMERCIALIZACIÓN
+- Este software solo puede ser distribuido o comercializado a través de Comutel Perú.
+- Queda expresamente prohibido el sublicenciamiento, alquiler, arrendamiento, préstamo o 
+  reventa del software a terceros.
+- Cualquier otro uso comercial, redistribución o trabajo derivado requiere autorización 
+  escrita y explícita del autor y de Comutel Perú.
 
-EL SOFTWARE SE ENTREGA SIN GARANTÍA DE NINGÚN TIPO, EXPRESA
-O IMPLÍCITA. EL AUTOR NO ES RESPONSABLE DE DAÑOS DERIVADOS DEL USO.
+3. RESTRICCIONES
+Queda estrictamente prohibido descompilar, desensamblar, realizar ingeniería inversa, 
+modificar o intentar descubrir el código fuente de este software, así como la copia 
+parcial o total de sus interfaces y algoritmos.
+
+4. EXCLUSIÓN DE GARANTÍA Y LIMITACIÓN DE RESPONSABILIDAD
+EL SOFTWARE SE ENTREGA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA, 
+INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD O ADECUACIÓN PARA UN PROPÓSITO 
+PARTICULAR. EN NINGÚN CASO EL AUTOR O COMUTEL PERÚ SERÁN RESPONSABLES DE DAÑOS DIRECTOS, 
+INDIRECTOS, INCIDENTALES O EMERGENTES DERIVADOS DEL USO O LA INCAPACIDAD DE USAR EL SOFTWARE.
+
+5. LEY APLICABLE Y JURISDICCIÓN
+Este acuerdo se rige e interpreta bajo las leyes de la República del Perú. Para cualquier 
+disputa legal, las partes se someten a la jurisdicción de los tribunales de Lima, Perú.
